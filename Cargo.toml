@@ -1,0 +1,10 @@
+[package]
+name = "putty_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serialport = "4.6"
+clap = { version = "4.3", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11"

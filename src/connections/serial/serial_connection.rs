@@ -5,6 +5,7 @@ use log::{info, error};
 use crate::core::{Connection, ConnectionError};
 
 /// A struct that holds info about our serial connection.
+#[derive(Debug)]
 pub struct SerialConnection {
     port_path: String,
     baud_rate: u32,

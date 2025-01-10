@@ -4,6 +4,7 @@ use crate::core::{ConnectionManager, ConnectionError};
 use crate::connections::serial::SerialConnection;
 use std::io::{self, Read, Write};
 use std::os::unix::io::AsRawFd;
+use std::sync::atomic::{AtomicBool, Ordering};
 use termios::*;
 
 fn set_raw_mode() -> Termios {
@@ -48,11 +49,14 @@ pub fn run_cli() -> Result<(), ConnectionError> {
         let active_conn = Arc::new(Mutex::new(active_conn));
 
         let (tx_stop, rx_stop) = std::sync::mpsc::channel::<()>();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        // Spawn reader thread
         let conn_reader = Arc::clone(&active_conn);
+        let reader_stop_flag = Arc::clone(&stop_flag);
 
-        std::thread::spawn(move || {
+        let reader_thread = std::thread::spawn(move || {
             let mut buffer = [0u8; 1]; // Only read one byte at a time
-            loop {
+            while !reader_stop_flag.load(Ordering::SeqCst) {
                 if rx_stop.try_recv().is_ok() {
                     break;
                 }
@@ -74,6 +78,16 @@ pub fn run_cli() -> Result<(), ConnectionError> {
                 std::thread::sleep(std::time::Duration::from_millis(10)); // Optional small delay
             }
         });
+
+        // Handle Ctrl+C to trigger cleanup
+        {
+            let stop_flag = Arc::clone(&stop_flag);
+            let tx_stop = tx_stop.clone();
+            ctrlc::set_handler(move || {
+                stop_flag.store(true, Ordering::SeqCst);
+                let _ = tx_stop.send(()); // Signal the reader thread to stop
+            }).expect("Error setting Ctrl+C handler");
+        }
 
         let original_mode = set_raw_mode();
         eprintln!("Raw mode enabled. Type into the terminal to send data. Press 'q' to quit.");
@@ -99,9 +113,10 @@ pub fn run_cli() -> Result<(), ConnectionError> {
             }
         }
 
-        let _ = tx_stop.send(());
-        restore_mode(original_mode);
-        manager.destroy_connection(Arc::try_unwrap(active_conn).unwrap().into_inner().unwrap())?;
+        // Signal reader thread to stop and wait for it
+        stop_flag.store(true, Ordering::SeqCst);
+        let _ = tx_stop.send(()); // Signal stop
+        reader_thread.join().expect("Failed to join reader thread");
     } else {
         eprintln!("No --port argument provided.");
         eprintln!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");

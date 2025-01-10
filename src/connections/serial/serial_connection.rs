@@ -27,14 +27,14 @@ impl Connection for SerialConnection {
     fn connect(&mut self) -> Result<(), ConnectionError> {
         info!("Attempting to open serial port: {}", self.port_path);
 
-        // `open()` already returns a `Box<dyn SerialPort>`.
+        // Use a short timeout (e.g. 100ms) so the read loop won't block forever.
+        // This allows the thread to periodically check stop flags.
         let serial_port = serialport::new(&self.port_path, self.baud_rate)
-            .timeout(Duration::from_millis(1000))
+            .timeout(Duration::from_millis(100))
             .open()?;
 
         info!("Successfully opened serial port: {}", self.port_path);
 
-        // No need to wrap in another Box.
         self.inner = Some(serial_port);
         Ok(())
     }
@@ -60,6 +60,8 @@ impl Connection for SerialConnection {
 
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
+            // This will return Ok(0) if the read times out, or a real number of bytes if data arrives.
+            // If there's an actual error, it returns Err(...).
             port.read(buffer).map_err(ConnectionError::from)
         } else {
             error!("Cannot read: serial port not connected!");
@@ -67,4 +69,3 @@ impl Connection for SerialConnection {
         }
     }
 }
-

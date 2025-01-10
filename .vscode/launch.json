@@ -1,0 +1,61 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Cargo Run",
+            "cargo": {
+                "args": [
+                    "run"
+                ]
+            },
+            "args": [
+                "--port",
+                "/dev/pts/3"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'putty_rs'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=putty_rs",
+                    "--package=putty_rs"
+                ],
+                "filter": {
+                    "name": "putty_rs",
+                    "kind": "bin"
+                }
+            },
+            "program": "${workspaceFolder}/target/debug/putty_rs",
+            "args": [
+                "--port",
+                "/dev/pts/3"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'putty_rs'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=putty_rs",
+                    "--package=putty_rs"
+                ],
+                "filter": {
+                    "name": "putty_rs",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

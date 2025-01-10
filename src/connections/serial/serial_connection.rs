@@ -27,14 +27,14 @@ impl Connection for SerialConnection {
         info!("Attempting to open serial port: {}", self.port_path);
 
         // `open()` already returns a `Box<dyn SerialPort>`.
-        let port = serialport::new(&self.port_path, self.baud_rate)
+        let serial_port = serialport::new(&self.port_path, self.baud_rate)
             .timeout(Duration::from_millis(1000))
             .open()?;
 
         info!("Successfully opened serial port: {}", self.port_path);
 
         // No need to wrap in another Box.
-        self.inner = Some(port);
+        self.inner = Some(serial_port);
         Ok(())
     }
 
@@ -48,7 +48,9 @@ impl Connection for SerialConnection {
 
     fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
-            port.write(data).map_err(ConnectionError::from)
+            let bytes_written = port.write(data).map_err(ConnectionError::from)?;
+            port.flush().map_err(ConnectionError::from)?;
+            Ok(bytes_written)
         } else {
             error!("Cannot write: serial port not connected!");
             Err(ConnectionError::Other("Not connected".into()))

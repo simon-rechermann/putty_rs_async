@@ -1,12 +1,10 @@
 use log::{info, error};
-use clap::Parser;
 
 mod core;
 mod connections;
 mod ui;
 mod utils;
 
-use ui::cli::commands::run_cli;
 use utils::logging::init_logging;
 
 fn main() {

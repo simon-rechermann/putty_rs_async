@@ -51,23 +51,27 @@ pub fn run_cli() -> Result<(), ConnectionError> {
         let conn_reader = Arc::clone(&active_conn);
 
         std::thread::spawn(move || {
-            let mut buffer = [0u8; 64];
+            let mut buffer = [0u8; 1]; // Only read one byte at a time
             loop {
-                if let Ok(()) = rx_stop.try_recv() {
+                if rx_stop.try_recv().is_ok() {
                     break;
                 }
                 {
                     let mut conn_guard = conn_reader.lock().unwrap();
                     match conn_guard.read(&mut buffer) {
-                        Ok(size) if size > 0 => {
-                            let s = String::from_utf8_lossy(&buffer[..size]);
-                            print!("{}", s);
+                        Ok(1) => {
+                            let ch = buffer[0];
+                            if ch == b'\r' {
+                                print!("\r\n");
+                            } else {
+                                print!("{}", ch as char);
+                            }
                             io::stdout().flush().unwrap();
                         }
                         _ => {}
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::thread::sleep(std::time::Duration::from_millis(10)); // Optional small delay
             }
         });
 

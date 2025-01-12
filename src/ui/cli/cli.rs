@@ -14,7 +14,7 @@ fn set_raw_mode() -> Result<Termios, ConnectionError> {
     let mut termios = Termios::from_fd(stdin_fd)?;
     let original = termios.clone();
 
-    // Disable canonical mode & echo, but keep signals (ISIG) if you want Ctrl+C to still kill
+    // Disable canonical mode & echo
     termios.c_lflag &= !(ICANON | ECHO);
 
     // 1 byte at a time, no timeout
@@ -33,22 +33,24 @@ fn restore_mode(original: Termios) {
 /// Command-line arguments struct.
 #[derive(Parser, Debug)]
 #[command(name = "putty_rs", version = "0.1.0")]
-pub struct Cli {
+pub struct Args {
+    /// Launch in GUI mode
     #[arg(long)]
+    pub gui: bool,
+    #[arg(long, default_value = "/dev/pts/3")]
     pub port: Option<String>,
     #[arg(long, default_value_t = 115200)]
     pub baud: u32,
 }
 
-pub fn run_cli() -> Result<(), ConnectionError> {
-    let cli = Cli::parse();
+pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
 
-    if let Some(port) = cli.port {
-        eprintln!("Opening serial port: {} at {} baud", port, cli.baud);
+    if let Some(port) = args.port {
+        eprintln!("Opening serial port: {} at {} baud", port, args.baud);
 
         // Prepare manager and connection
         let manager = ConnectionManager::new();
-        let conn = SerialConnection::new(port.clone(), cli.baud);
+        let conn = SerialConnection::new(port.clone(), args.baud);
         let conn = manager.create_connection(conn)?;
 
         // The callback for each incoming byte: print it immediately

@@ -3,18 +3,19 @@ use log::{info, error};
 use eframe;
 use eframe::egui;
 
+use crate::ui::cli::cli::Args;
 use crate::connections::serial::SerialConnection;
 use crate::core::ConnectionManager;
 use crate::core::session::Session;
 
-pub fn launch_gui() -> eframe::Result<()> {
+pub fn launch_gui(args: Args) -> eframe::Result<()> {
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
         "putty_rs GUI",
         native_options,
         Box::new(|_cc| {
             // eframe 0.30+ requires returning Result<Box<dyn App>, Box<dyn std::error::Error>>
-            Ok(Box::new(MyGuiApp::default()))
+            Ok(Box::new(MyGuiApp::new(args.port, args.baud)))
         }),
     )
 }
@@ -133,6 +134,18 @@ impl eframe::App for MyGuiApp {
 }
 
 impl MyGuiApp {
+    fn new(port: Option<String>, baud: u32) -> Self {
+        Self {
+            port: port.unwrap_or("/dev/pts/3".to_owned()), // Default to "/dev/pts/3"
+            baud_str: baud.to_string(),
+            connected: false,
+            session: None,
+            incoming_text: Arc::new(Mutex::new(String::new())),
+            terminal_input: String::new(),
+            old_terminal_input: String::new(),
+        }
+    }
+
     fn connect(&mut self) {
         let baud = match self.baud_str.parse::<u32>() {
             Ok(b) => b,

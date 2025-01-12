@@ -12,6 +12,36 @@ putty-rs is a rust clone of link:https://www.putty.org/[putty].
 @enduml
 ----
 
+[plantuml, component, png]
+----
+@startuml
+skinparam componentStyle uml2
+
+package UI {
+    [GUI] --> [CLI]
+}
+
+package Core {
+    [Session] --> [ConnectionManager]
+}
+
+package Connections {
+  ' SerialConnection is a component
+  [SerialConnection] <<component>>
+
+  ' Interf4 is a component *labeled* as an interface
+  [Connection] <<interface>>
+
+  [SerialConnection] --> [Connection]
+}
+
+
+[UI] --> [Core]
+[ConnectionManager] --> [Connections]
+@enduml
+----
+
+
 [plantuml, sequence, png]
 ----
 @startuml

@@ -1,9 +1,36 @@
+// src/ui/cli/cli.rs
+
 use clap::Parser;
 use log::{info, error};
+use std::io::{self, Read, Write};
+use std::os::unix::io::AsRawFd;
 
+use termios::*;
 use crate::core::{ConnectionManager, ConnectionError};
 use crate::connections::serial::SerialConnection;
-use crate::core::application::SerialSession;
+use crate::core::session::Session;
+
+/// Put stdin into raw mode so we can read each keystroke immediately.
+fn set_raw_mode() -> Result<Termios, ConnectionError> {
+    let stdin_fd = io::stdin().as_raw_fd();
+    let mut termios = Termios::from_fd(stdin_fd)?;
+    let original = termios.clone();
+
+    // Disable canonical mode & echo, but keep signals (ISIG) if you want Ctrl+C to still kill
+    termios.c_lflag &= !(ICANON | ECHO);
+
+    // 1 byte at a time, no timeout
+    termios.c_cc[VMIN] = 1;
+    termios.c_cc[VTIME] = 0;
+
+    tcsetattr(stdin_fd, TCSANOW, &termios)?;
+    Ok(original)
+}
+
+fn restore_mode(original: Termios) {
+    let stdin_fd = io::stdin().as_raw_fd();
+    let _ = tcsetattr(stdin_fd, TCSANOW, &original);
+}
 
 /// Command-line arguments struct.
 #[derive(Parser, Debug)]
@@ -23,18 +50,60 @@ pub fn run_cli() -> Result<(), ConnectionError> {
 
         // Prepare manager and connection
         let manager = ConnectionManager::new();
-        let connection = SerialConnection::new(port.clone(), cli.baud);
-        // Must Box the connection if we want to store it as a dyn Connection
-        let connection = manager.create_connection(connection)?;
+        let conn = SerialConnection::new(port.clone(), cli.baud);
+        let conn = manager.create_connection(conn)?;
 
-        // Build a session
-        let mut session = SerialSession::new(manager, Box::new(connection));
+        // The callback for each incoming byte: print it immediately
+        let on_byte = move |byte: u8| {
+            if byte == b'\r' {
+                // If you want \r to appear as a newline:
+                print!("\r\n");
+            } else {
+                print!("{}", byte as char);
+            }
+            let _ = io::stdout().flush();
+        };
 
-        // Run the session (reader thread + main loop)
-        match session.run() {
-            Ok(_) => info!("Session ended gracefully."),
-            Err(e) => error!("Session error: {:?}", e),
+        // Build our session
+        let mut session = Session::new(manager, Box::new(conn), on_byte);
+        session.start();
+
+        // Put terminal in raw mode so we get each typed character
+        let original_mode = set_raw_mode()?;
+        eprintln!("Raw mode enabled. Type into the terminal to send data. Press Ctrl+A then 'x' to exit.");
+
+        let mut last_was_ctrl_a = false;
+        let mut buf = [0u8; 1];
+
+        // Main loop reading from stdin, sending each char immediately
+        while io::stdin().read(&mut buf).is_ok() {
+            let ch = buf[0];
+
+            // Check for Ctrl+A then 'x' to quit
+            if ch == 0x01 {
+                last_was_ctrl_a = true;
+                continue;
+            }
+            if last_was_ctrl_a && ch == b'x' {
+                info!("Ctrl+A + x pressed. Exiting...");
+                break;
+            } else {
+                last_was_ctrl_a = false;
+            }
+
+            // Convert newline to carriage return if desired
+            if ch == b'\n' {
+                let _ = session.write_bytes(b"\r");
+            } else {
+                let _ = session.write_bytes(&[ch]);
+            }
         }
+
+        // Cleanup
+        session.stop().ok();
+        restore_mode(original_mode);
+        eprintln!("Terminal mode restored.");
+
     } else {
         eprintln!("No --port argument provided.");
         eprintln!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");

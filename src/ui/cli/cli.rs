@@ -1,7 +1,5 @@
-// src/ui/cli/cli.rs
-
 use clap::Parser;
-use log::{info, error};
+use log::info;
 use std::io::{self, Read, Write};
 use std::os::unix::io::AsRawFd;
 

@@ -3,8 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use crate::core::connection::Connection;
-use crate::core::{ConnectionManager, ConnectionError};
+use crate::connections::connection::Connection;
+use crate::connections::errors::ConnectionError;
+use crate::core::ConnectionManager;
 use log::debug;
 
 /// A struct that represents a running session:

@@ -1,4 +1,4 @@
-use super::{Connection, ConnectionError};
+use crate::connections::{Connection, ConnectionError};
 
 /// A simple ConnectionManager to create and store connections.
 pub struct ConnectionManager;

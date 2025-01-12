@@ -1,0 +1,13 @@
+:description: putty-rs
+:sectanchors:
+:doctype: book
+:toc:
+:toc-placement: left
+:toclevels: 2
+:imagesdir: images
+
+# putty-rs docu
+
+Welcome to the putty-rs docu.
+
+include::pages/architecture.adoc[leveloffset = 1]

@@ -4,7 +4,8 @@ use std::io::{self, Read, Write};
 use std::os::unix::io::AsRawFd;
 
 use termios::*;
-use crate::core::{ConnectionManager, ConnectionError};
+use crate::core::ConnectionManager;
+use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
 use crate::core::session::Session;
 

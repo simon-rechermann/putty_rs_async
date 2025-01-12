@@ -1,0 +1,23 @@
+= Introduction
+
+putty-rs is a rust clone of link:https://www.putty.org/[putty].
+
+== What's the Architecture of putty-rs?
+
+[plantuml, component, png]
+----
+@startuml
+[UI] --> [Core]
+[Core] --> [Connections]
+@enduml
+----
+
+[plantuml, sequence, png]
+----
+@startuml
+User -> CLI: Command
+CLI -> Core: Process Command
+Core -> CLI: Response
+CLI -> User: Output
+@enduml
+----

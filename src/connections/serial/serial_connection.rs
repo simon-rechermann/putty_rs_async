@@ -2,7 +2,7 @@ use serialport::SerialPort;
 use std::time::Duration;
 use log::{info, error};
 
-use crate::core::{Connection, ConnectionError};
+use crate::connections::{Connection, ConnectionError};
 
 /// A struct that holds info about our serial connection.
 #[derive(Debug)]

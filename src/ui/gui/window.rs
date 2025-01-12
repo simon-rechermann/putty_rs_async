@@ -43,7 +43,7 @@ pub struct MyGuiApp {
 impl Default for MyGuiApp {
     fn default() -> Self {
         MyGuiApp {
-            port: "/dev/pts/3".to_owned(),    // Default port
+            port: "/dev/pts/3".to_owned(),   // Default port
             baud_str: "115200".to_owned(),   // Default baud
             connected: false,
             session: None,
@@ -121,6 +121,14 @@ impl eframe::App for MyGuiApp {
 
             ctx.request_repaint();
         });
+    }
+
+    /// Called once when the user closes the window.
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Ensure we disconnect & free the port if still connected.
+        if self.connected {
+            self.disconnect();
+        }
     }
 }
 

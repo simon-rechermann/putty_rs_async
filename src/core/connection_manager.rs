@@ -16,9 +16,10 @@ impl ConnectionManager {
         Ok(conn)
     }
 
-    /// Potentially you could store multiple connections, look them up, etc.
-    /// This method is just a placeholder for "destroying" a connection.
-    pub fn destroy_connection<T: Connection>(&self, mut conn: T) -> Result<(), ConnectionError> {
+    // Takes a &mut T, which can be a trait object
+    pub fn destroy_connection<T: Connection + ?Sized>(&self, conn: &mut T)
+        -> Result<(), ConnectionError>
+    {
         conn.disconnect()
     }
 }

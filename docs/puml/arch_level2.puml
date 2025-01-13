@@ -1,0 +1,35 @@
+@startuml ArchLevel2
+
+allowmixing
+
+skinparam packageStyle rectangle
+skinparam packageBackgroundColor White
+
+package UI {
+    class CLI
+    class GUI
+    GUI -> CLI
+}
+
+package Core {
+    class Session
+    class ConnectionManager
+    Session --> ConnectionManager
+}
+
+package Connections {
+    interface Connection {
+        + connect
+        + disconnect
+        + read
+        + write
+    }
+    class SerialConnection {
+    }
+    Connection <|-- SerialConnection
+}
+
+UI --> Core
+ConnectionManager --> Connection
+
+@enduml

@@ -1,53 +1,25 @@
+:pumldir: ../puml
+:plantuml-preprocess: true
+
 = Introduction
 
 putty-rs is a rust clone of link:https://www.putty.org/[putty].
 
 == What's the Architecture of putty-rs?
 
-[plantuml, component, png]
-----
-@startuml
-[UI] --> [Core]
-[Core] --> [Connections]
-@enduml
-----
+The Architecture description is based on the link:https://docs.arc42.org/section-5/[arc42 template].
+
+=== Building Block View
+See: link:https://docs.arc42.org/section-5/[Building Block View]
+
+*Level1*:
 
 [plantuml, component, png]
-----
-@startuml
-skinparam componentStyle uml2
 
-package UI {
-    [GUI] --> [CLI]
-}
+plantuml::{pumldir}/arch_level1.puml[]
 
-package Core {
-    [Session] --> [ConnectionManager]
-}
+*Level2*:
 
-package Connections {
-  ' SerialConnection is a component
-  [SerialConnection] <<component>>
+[plantuml, component, png]
 
-  ' Interf4 is a component *labeled* as an interface
-  [Connection] <<interface>>
-
-  [SerialConnection] --> [Connection]
-}
-
-
-[UI] --> [Core]
-[ConnectionManager] --> [Connections]
-@enduml
-----
-
-
-[plantuml, sequence, png]
-----
-@startuml
-User -> CLI: Command
-CLI -> Core: Process Command
-Core -> CLI: Response
-CLI -> User: Output
-@enduml
-----
+plantuml::{pumldir}/arch_level2.puml[]

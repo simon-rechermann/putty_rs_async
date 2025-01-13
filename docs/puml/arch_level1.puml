@@ -1,0 +1,8 @@
+----
+@startuml ArchLevel1
+skinparam componentBackgroundColor White
+
+[UI] --> [Core]
+[Core] --> [Connections]
+@enduml
+----

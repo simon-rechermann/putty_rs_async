@@ -4,12 +4,9 @@
 :toc:
 :toc-placement: left
 :toclevels: 2
-:imagesdir: images
-:pumldir: puml
-:preprocess: true
 
 # putty-rs docu
 
 Welcome to the putty-rs docu.
 
-include::pages/architecture.adoc[leveloffset = 1]
+include::pages/architecture.adoc[]

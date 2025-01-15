@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "rust-lang.rust-analyzer", // Rust language support
+        "vadimcn.vscode-lldb", // Debugger
+        "asciidoctor.asciidoctor-vscode", // AsciiDoc support
+        "jebbs.plantuml", // PlantUML support
+        "fill-labs.dependi", // Cargo dependency checks
+        // "ms-vscode-remote.remote-containers", // TODO: Add devcontainer
+        "tamasfe.even-better-toml", // TOML file support
+    ]
+}

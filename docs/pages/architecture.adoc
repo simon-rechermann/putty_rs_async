@@ -1,8 +1,6 @@
-:pumldir: ../puml
-:plantuml-preprocess: true
+include::config.adoc[]
 
-= Introduction
-
+== Introduction
 putty-rs is a rust clone of link:https://www.putty.org/[putty].
 
 == What's the Architecture of putty-rs?
@@ -14,12 +12,14 @@ See: link:https://docs.arc42.org/section-5/[Building Block View]
 
 *Level1*:
 
-[plantuml, component, png]
-
-plantuml::{pumldir}/arch_level1.puml[]
+[plantuml, componentD, png]
+....
+include::{pumldir}/arch_level1.puml[]
+....
 
 *Level2*:
 
-[plantuml, component, png]
-
-plantuml::{pumldir}/arch_level2.puml[]
+[plantuml, componentA, png]
+....
+include::{pumldir}/arch_level2.puml[]
+....

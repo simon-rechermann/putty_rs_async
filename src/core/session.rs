@@ -49,6 +49,7 @@ impl Session {
             let mut buf = [0u8; 256];
             while !stop_clone.load(Ordering::SeqCst) {
                 // Give write_bytes the possibility to lock the Mutex and don't block the main thread due to waiting for the Mutex
+                // TODO: One IO thread for reading and writing communicating via channels with the main thread would allow to remove the Mutex
                 thread::sleep(Duration::from_millis(1));
                 let data;
                 {

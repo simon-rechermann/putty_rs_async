@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
+use std::io::{self, Write};
 
 use crate::connections::connection::Connection;
 use crate::connections::errors::ConnectionError;
@@ -45,21 +46,21 @@ impl Session {
         let callback_clone = self.on_byte.clone();
 
         let handle = thread::spawn(move || {
-            let mut buf = [0u8; 1];
+            let mut buf = [0u8; 256];
             while !stop_clone.load(Ordering::SeqCst) {
                 {
                     let mut conn = conn_clone.lock().unwrap();
                     match conn.read(&mut buf) {
-                        Ok(1) => {
-                            let byte = buf[0];
-                            let mut cb = callback_clone.lock().unwrap();
-                            cb(byte);
-                        }
                         Ok(0) => {
                             // no data
                         }
-                        Ok(_) => {
-                            // shouldn't happen for 1 byte
+                        Ok(n) => {
+                            let data = &buf[..n];
+                            let mut cb = callback_clone.lock().unwrap();
+                            for &byte in data {
+                                cb(byte);
+                            }
+                            io::stdout().flush().ok();
                         }
                         Err(ConnectionError::IoError(ref io_err))
                             if io_err.kind() == std::io::ErrorKind::TimedOut =>
@@ -72,7 +73,7 @@ impl Session {
                         }
                     }
                 }
-                thread::sleep(Duration::from_millis(10));
+                thread::sleep(Duration::from_millis(1));
             }
             debug!("Reader thread stopped.");
         });

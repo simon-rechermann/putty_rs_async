@@ -1,6 +1,6 @@
 use clap::Parser;
 use log::info;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::os::unix::io::AsRawFd;
 
 use termios::*;
@@ -58,11 +58,10 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         let on_byte = move |byte: u8| {
             if byte == b'\r' {
                 // If you want \r to appear as a newline:
-                print!("\r\n");
+                print!("\r");
             } else {
                 print!("{}", byte as char);
             }
-            let _ = io::stdout().flush();
         };
 
         // Build our session

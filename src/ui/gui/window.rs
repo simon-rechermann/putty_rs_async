@@ -164,7 +164,7 @@ impl MyGuiApp {
                 let on_byte = move |byte: u8| {
                     let mut guard = text_ref.lock().unwrap();
                     if byte == b'\r' {
-                        guard.push('\n');
+                        guard.push('\r');
                     } else {
                         guard.push(byte as char);
                     }

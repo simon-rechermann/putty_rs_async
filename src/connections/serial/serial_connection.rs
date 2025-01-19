@@ -26,10 +26,10 @@ impl Connection for SerialConnection {
     fn connect(&mut self) -> Result<(), ConnectionError> {
         info!("Attempting to open serial port: {}", self.port_path);
 
-        // Use a short timeout (e.g. 100ms) so the read loop won't block forever.
+        // Use a short timeout (e.g. 10ms) so the read loop won't block forever.
         // This allows the thread to periodically check stop flags.
         let serial_port = serialport::new(&self.port_path, self.baud_rate)
-            .timeout(Duration::from_millis(100))
+            .timeout(Duration::from_millis(10))
             .open()?;
 
         info!("Successfully opened serial port: {}", self.port_path);

@@ -48,35 +48,41 @@ impl Session {
         let handle = thread::spawn(move || {
             let mut buf = [0u8; 256];
             while !stop_clone.load(Ordering::SeqCst) {
+                // Give write_bytes the possibility to lock the Mutex and don't block the main thread due to waiting for the Mutex
+                thread::sleep(Duration::from_millis(1));
+                let data;
                 {
+                    // Locking the mutex can cause the main thread to not be able to write data anymore to the serial port!
+                    // as write_bytes waits as long as conn.read here blocks(is blocks as long as the timeout has been set)
+                    // By sleeping withing this loop without having the Mutex locked we allow the write_bytes to lock the Mutex
                     let mut conn = conn_clone.lock().unwrap();
-                    match conn.read(&mut buf) {
-                        Ok(0) => {
-                            debug!("Ok(0) Not data");
-                            // no data
+                    data = conn.read(&mut buf);
+                }
+                match data {
+                    Ok(0) => {
+                        debug!("Ok(0) Not data");
+                        // no data
+                    }
+                    Ok(n) => {
+                        debug!("Ok(n): {} bytes arrived", n);
+                        let data = &buf[..n];
+                        let mut cb = callback_clone.lock().unwrap();
+                        for &byte in data {
+                            cb(byte);
                         }
-                        Ok(n) => {
-                            debug!("Ok(n): {} bytes arrived", n);
-                            let data = &buf[..n];
-                            let mut cb = callback_clone.lock().unwrap();
-                            for &byte in data {
-                                cb(byte);
-                            }
-                            io::stdout().flush().ok();
-                        }
-                        Err(ConnectionError::IoError(ref io_err))
-                            if io_err.kind() == std::io::ErrorKind::TimedOut =>
-                        {
-                            // no data during that interval
-                            debug!("Timeout error");
-                        }
-                        Err(e) => {
-                            debug!("Read error: {:?}", e);
-                            // Decide if you want to break or keep reading
-                        }
+                        io::stdout().flush().ok();
+                    }
+                    Err(ConnectionError::IoError(ref io_err))
+                        if io_err.kind() == std::io::ErrorKind::TimedOut =>
+                    {
+                        // no data during that interval
+                        debug!("Timeout error");
+                    }
+                    Err(e) => {
+                        debug!("Read error: {:?}", e);
+                        // Decide if you want to break or keep reading
                     }
                 }
-                thread::sleep(Duration::from_millis(1));
             }
             debug!("Reader thread stopped.");
         });

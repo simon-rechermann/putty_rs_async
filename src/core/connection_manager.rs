@@ -20,7 +20,7 @@ enum IoEvent {
 /// Record of a single active connection:
 /// - A thread handle for the I/O loop
 /// - A Sender for IoEvent (writes + stop signals)
-struct ConnectionRecord {
+struct ConnectionIOThread {
     thread_handle: Option<thread::JoinHandle<()>>,
     tx: Sender<IoEvent>,
 }
@@ -37,7 +37,7 @@ pub struct ConnectionHandle {
 #[derive(Clone)]
 pub struct ConnectionManager {
     /// Map "connection ID" -> ConnectionRecord
-    inner: Arc<Mutex<HashMap<String, ConnectionRecord>>>,
+    inner: Arc<Mutex<HashMap<String, ConnectionIOThread>>>,
 }
 
 impl ConnectionManager {
@@ -48,7 +48,7 @@ impl ConnectionManager {
         }
     }
 
-    /// Add a new connection to this Session.
+    /// Add a new connection to this ConnectionManager.
     /// - `id`: A unique identifier (port name, e.g. "/dev/ttyUSB0")
     /// - `mut conn`: A *not yet connected* serial Connection
     /// - `on_byte`: A callback invoked on each received byte (with the connection `id`)
@@ -58,7 +58,7 @@ impl ConnectionManager {
         &self,
         id: String,
         mut conn: Box<dyn Connection + Send>,
-        mut on_byte: impl FnMut(String, u8) + Send + 'static,
+        mut on_byte: impl FnMut(u8) + Send + 'static,
     ) -> Result<ConnectionHandle, ConnectionError> {
         // 1) Actually connect the port
         conn.connect()?;
@@ -100,7 +100,7 @@ impl ConnectionManager {
                     }
                     Ok(n) => {
                         for &byte in &buf[..n] {
-                            on_byte(id_clone.clone(), byte);
+                            on_byte(byte);
                         }
                         io::stdout().flush().ok();
                     }
@@ -120,7 +120,7 @@ impl ConnectionManager {
         });
 
         // 4) Store in our HashMap
-        let record = ConnectionRecord {
+        let record = ConnectionIOThread {
             thread_handle: Some(thread_handle),
             tx: tx.clone(),
         };
@@ -176,10 +176,5 @@ impl ConnectionHandle {
     /// Stops *this* connection.
     pub fn stop(self) -> Result<(), ConnectionError> {
         self.session.stop_connection(&self.id)
-    }
-
-    /// Get the ID (e.g. port path) associated with this connection.
-    pub fn id(&self) -> &str {
-        &self.id
     }
 }

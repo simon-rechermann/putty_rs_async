@@ -12,9 +12,11 @@ package UI {
 }
 
 package Core {
-    class Session
+    class ConnectionHandle
+    class ConnectionIOThread
     class ConnectionManager
-    Session --> ConnectionManager
+    ConnectionHandle --> ConnectionManager
+    ConnectionManager "1" *-- "*" ConnectionIOThread
 }
 
 package Connections {
@@ -29,7 +31,7 @@ package Connections {
     Connection <|-- SerialConnection
 }
 
-UI --> Core
-ConnectionManager --> Connection
+UI --> ConnectionHandle
+ConnectionIOThread --> Connection
 
 @enduml

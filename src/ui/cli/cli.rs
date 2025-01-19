@@ -55,7 +55,7 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         let conn = SerialConnection::new(port.clone(), args.baud);
 
         // 3) Provide a callback for incoming bytes
-        let on_byte = move |_conn_id: String, byte: u8| {
+        let on_byte = move |byte: u8| {
             // We ignore '_conn_id' here because currently we only have one connection in CLI
             if byte == b'\r' {
                 print!("\r");
@@ -65,7 +65,7 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         };
 
         // 4) Add the connection to the Session
-        let handle = connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
+        let handle: ConnectionHandle = connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
 
         // Put terminal in raw mode
         let original_mode = set_raw_mode()?;
@@ -89,8 +89,8 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
                 last_was_ctrl_a = false;
             }
 
-            if ch == b'\n' {
-                // Convert newline to carriage return
+            if ch == b'\r' {
+                // Convert carriage return to newline if wanted here
                 let _ = handle.write_bytes(b"\r");
             } else {
                 let _ = handle.write_bytes(&[ch]);

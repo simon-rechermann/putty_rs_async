@@ -52,9 +52,11 @@ impl Session {
                     let mut conn = conn_clone.lock().unwrap();
                     match conn.read(&mut buf) {
                         Ok(0) => {
+                            debug!("Ok(0) Not data");
                             // no data
                         }
                         Ok(n) => {
+                            debug!("Ok(n): {} bytes arrived", n);
                             let data = &buf[..n];
                             let mut cb = callback_clone.lock().unwrap();
                             for &byte in data {
@@ -66,6 +68,7 @@ impl Session {
                             if io_err.kind() == std::io::ErrorKind::TimedOut =>
                         {
                             // no data during that interval
+                            debug!("Timeout error");
                         }
                         Err(e) => {
                             debug!("Read error: {:?}", e);

@@ -1,6 +1,6 @@
 use clap::Parser;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::info;
+use log::{info, error};
 use std::io::{self, Read};
 
 use crate::connections::errors::ConnectionError;
@@ -43,7 +43,7 @@ pub struct Args {
 
 pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
     if let Some(port) = args.port {
-        eprintln!("Opening serial port: {} at {} baud", port, args.baud);
+        info!("Opening serial port: {} at {} baud", port, args.baud);
 
         // 1) Create a ConnectionManager to manage one or more connections
         let connection_manager = ConnectionManager::new();
@@ -86,7 +86,9 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
             }
 
             // If the previous character was Ctrl+A and the user typed 'x', exit
+            // and restore terminal mode
             if last_was_ctrl_a && ch == b'x' {
+                restore_mode();
                 info!("Exiting...");
                 break;
             } else {
@@ -101,13 +103,12 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
             }
         }
 
-        // 6) Stop the connection & restore terminal mode
+        // 6) Stop the connection
         let _ = handle.stop();
-        restore_mode();
-        eprintln!("Terminal mode restored.");
+        info!("Terminal mode restored.");
     } else {
-        eprintln!("No --port argument provided.");
-        eprintln!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");
+        error!("No --port argument provided.");
+        error!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");
     }
 
     Ok(())

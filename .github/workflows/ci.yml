@@ -3,7 +3,7 @@ name: putty-rs CI
 on:
   push:
     branches:
-      - 'feature/**'
+      - '**'
   pull_request:
     branches:
       - main

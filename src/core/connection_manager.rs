@@ -1,3 +1,4 @@
+use log::{debug, error, info};
 use std::collections::HashMap;
 use std::io::{self, Write};
 use std::sync::{
@@ -6,7 +7,6 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Duration;
-use log::{debug, error, info};
 
 use crate::connections::connection::Connection;
 use crate::connections::errors::ConnectionError;
@@ -146,7 +146,10 @@ impl ConnectionManager {
                 .map_err(|_| ConnectionError::Other("Channel closed".into()))?;
             Ok(data.len())
         } else {
-            Err(ConnectionError::Other(format!("No connection with id '{}'", id)))
+            Err(ConnectionError::Other(format!(
+                "No connection with id '{}'",
+                id
+            )))
         }
     }
 
@@ -160,7 +163,10 @@ impl ConnectionManager {
             }
             Ok(())
         } else {
-            Err(ConnectionError::Other(format!("No connection with id '{}'", id)))
+            Err(ConnectionError::Other(format!(
+                "No connection with id '{}'",
+                id
+            )))
         }
     }
 }

@@ -3,10 +3,10 @@ use log::info;
 use std::io::{self, Read};
 use std::os::unix::io::AsRawFd;
 
-use termios::*;
 use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
-use crate::core::connection_manager::{ConnectionManager, ConnectionHandle};
+use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
+use termios::*;
 
 /// Put stdin into raw mode so we read each keystroke immediately.
 fn set_raw_mode() -> Result<Termios, ConnectionError> {
@@ -44,7 +44,6 @@ pub struct Args {
 }
 
 pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
-
     if let Some(port) = args.port {
         eprintln!("Opening serial port: {} at {} baud", port, args.baud);
 
@@ -65,7 +64,8 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         };
 
         // 4) Add the connection to the Session
-        let handle: ConnectionHandle = connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
+        let handle: ConnectionHandle =
+            connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
 
         // Put terminal in raw mode
         let original_mode = set_raw_mode()?;
@@ -101,7 +101,6 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         let _ = handle.stop();
         restore_mode(original_mode);
         eprintln!("Terminal mode restored.");
-
     } else {
         eprintln!("No --port argument provided.");
         eprintln!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");

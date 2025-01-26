@@ -13,7 +13,7 @@ fn set_raw_mode() -> Result<(), ConnectionError> {
     enable_raw_mode().map_err(|e| {
         ConnectionError::Other(format!(
             "Failed to enable raw mode: {}",
-            e.to_string()
+            e
         ))
     })
 }

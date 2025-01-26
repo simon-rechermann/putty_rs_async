@@ -6,7 +6,7 @@ mod core;
 mod ui;
 mod utils;
 
-use ui::cli::cli::Args;
+use ui::cli::cli_commands::Args;
 use utils::logging::init_logging;
 
 fn main() {
@@ -23,7 +23,7 @@ fn main() {
         }
     } else {
         // Run CLI
-        if let Err(e) = ui::cli::cli::run_cli(args) {
+        if let Err(e) = ui::cli::cli_commands::run_cli(args) {
             error!("CLI error: {:?}", e);
         } else {
             info!("CLI run completed successfully.");

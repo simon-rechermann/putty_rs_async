@@ -12,7 +12,7 @@ use termios::*;
 fn set_raw_mode() -> Result<Termios, ConnectionError> {
     let stdin_fd = io::stdin().as_raw_fd();
     let mut termios = Termios::from_fd(stdin_fd)?;
-    let original = termios.clone();
+    let original = termios;
 
     // Disable canonical mode & echo
     termios.c_lflag &= !(ICANON | ECHO);

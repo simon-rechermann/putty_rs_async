@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::connections::serial::SerialConnection;
 use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
-use crate::ui::cli::cli::Args;
+use crate::ui::cli::cli_commands::Args;
 
 pub fn launch_gui(args: Args) -> eframe::Result<()> {
     let native_options = eframe::NativeOptions::default();

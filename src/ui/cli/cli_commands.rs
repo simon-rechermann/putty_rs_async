@@ -1,6 +1,6 @@
 use clap::Parser;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::{info, error};
+use log::{error, info};
 use std::io::{self, Read};
 
 use crate::connections::errors::ConnectionError;
@@ -10,15 +10,11 @@ use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
 fn set_raw_mode() -> Result<(), ConnectionError> {
-    enable_raw_mode().map_err(|e| {
-        ConnectionError::Other(format!(
-            "Failed to enable raw mode: {}",
-            e
-        ))
-    })
+    enable_raw_mode()
+        .map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {}", e)))
 }
 
-/// Restore normal terminal mode. 
+/// Restore normal terminal mode.
 /// crossterm internally remembers the previous mode and restores it.
 fn restore_mode() {
     let _ = disable_raw_mode();
@@ -66,7 +62,6 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
         let handle: ConnectionHandle =
             connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
 
-        
         info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
         // Put terminal in raw mode (cross-platform with crossterm)
         set_raw_mode()?;

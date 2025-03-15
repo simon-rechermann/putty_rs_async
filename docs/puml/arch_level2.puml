@@ -26,9 +26,10 @@ package Connections {
         + read
         + write
     }
-    class SerialConnection {
-    }
+    class SerialConnection {}
+    class SshConnection {}
     Connection <|-- SerialConnection
+    Connection <|-- SshConnection
 }
 
 UI --> ConnectionHandle

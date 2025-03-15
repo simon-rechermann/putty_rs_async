@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{debug, error, info};
 use ssh2::{Channel, Session};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -94,6 +94,7 @@ impl Connection for SshConnection {
             channel
                 .flush()
                 .map_err(|e| ConnectionError::Other(format!("Flush error: {}", e)))?;
+            debug!("Wrote {} bytes ({:?}) to ssh server", bytes_written, data);
             Ok(bytes_written)
         } else {
             error!("SSH connection not established!");

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::info;
+use log::{debug, info};
 use std::io::{self, Read};
 
 use crate::connections::errors::ConnectionError;
@@ -156,6 +156,7 @@ fn run_ssh_protocol(
     let mut buf = [0u8; 1];
     while io::stdin().read(&mut buf).is_ok() {
         let ch = buf[0];
+        debug!("Read char: {} from stdin", ch);
         let _ = handle.write_bytes(&[ch]);
     }
     let _ = handle.stop();

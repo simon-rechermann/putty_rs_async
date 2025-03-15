@@ -74,6 +74,7 @@ impl ConnectionManager {
                 // Check for any writes or Stop
                 match rx.try_recv() {
                     Ok(IoEvent::Write(data)) => {
+                        debug!("Write: {:?} to connection", data);
                         if let Err(e) = conn.write(&data) {
                             error!("Write error on '{}': {:?}", id_clone, e);
                         }
@@ -139,6 +140,7 @@ impl ConnectionManager {
     pub fn write_bytes(&self, id: &str, data: &[u8]) -> Result<usize, ConnectionError> {
         let map = self.inner.lock().unwrap();
         if let Some(record) = map.get(id) {
+            debug!("write: {:?}", data.to_vec());
             record
                 .tx
                 .send(IoEvent::Write(data.to_vec()))

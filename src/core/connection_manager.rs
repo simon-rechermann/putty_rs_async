@@ -32,16 +32,16 @@ pub struct ConnectionHandle {
     id: String,
 }
 
-/// The main `Session` that can hold multiple connections in a HashMap.
+/// The main `ConnectionManager` that can hold multiple connections in a HashMap.
 /// Each connection has its own dedicated I/O thread.
 #[derive(Clone)]
 pub struct ConnectionManager {
-    /// Map "connection ID" -> ConnectionRecord
+    /// Map "connection ID" -> ConnectionIOThread
     inner: Arc<Mutex<HashMap<String, ConnectionIOThread>>>,
 }
 
 impl ConnectionManager {
-    /// Create an empty Session.
+    /// Create an empty ConnectionManager.
     pub fn new() -> Self {
         ConnectionManager {
             inner: Arc::new(Mutex::new(HashMap::new())),
@@ -49,18 +49,16 @@ impl ConnectionManager {
     }
 
     /// Add a new connection to this ConnectionManager.
-    /// - `id`: A unique identifier (port name, e.g. "/dev/ttyUSB0")
-    /// - `mut conn`: A *not yet connected* serial Connection
-    /// - `on_byte`: A callback invoked on each received byte (with the connection `id`)
-    ///
-    /// Returns a `ConnectionHandle` so you can write/stop this connection.
+    /// - `id`: A unique identifier (e.g. port name or host)
+    /// - `conn`: A *not-yet-connected* Connection
+    /// - `on_byte`: A callback invoked on each received byte
     pub fn add_connection(
         &self,
         id: String,
         mut conn: Box<dyn Connection + Send>,
         mut on_byte: impl FnMut(u8) + Send + 'static,
     ) -> Result<ConnectionHandle, ConnectionError> {
-        // 1) Actually connect the port
+        // 1) Actually connect the connection
         conn.connect()?;
 
         // 2) Create a channel for IoEvent
@@ -96,17 +94,18 @@ impl ConnectionManager {
                 // Attempt to read
                 match conn.read(&mut buf) {
                     Ok(0) => {
-                        // no data
+                        // no data this cycle
                     }
                     Ok(n) => {
                         for &byte in &buf[..n] {
                             on_byte(byte);
                         }
-                        io::stdout().flush().ok();
+                        // flush stdout so user sees data immediately
+                        let _ = io::stdout().flush();
                     }
                     Err(e) => {
                         debug!("Read error on '{}': {:?}", id_clone, e);
-                        // Could be a timeout or real error
+                        // Could be a timeout or real error.
                     }
                 }
 
@@ -172,7 +171,6 @@ impl ConnectionManager {
 }
 
 // -- ConnectionHandle methods --
-// This is a small struct that references `Session` + an `id`.
 impl ConnectionHandle {
     /// Writes data to *this* connection.
     pub fn write_bytes(&self, data: &[u8]) -> Result<usize, ConnectionError> {

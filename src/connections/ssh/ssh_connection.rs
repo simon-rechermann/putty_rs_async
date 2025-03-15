@@ -1,7 +1,7 @@
-use std::net::TcpStream;
+use log::{error, info};
+use ssh2::{Channel, Session};
 use std::io::{Read, Write};
-use log::{info, error};
-use ssh2::{Session, Channel};
+use std::net::TcpStream;
 use std::time::Duration;
 
 use crate::connections::connection::Connection;
@@ -34,62 +34,77 @@ impl Connection for SshConnection {
     fn connect(&mut self) -> Result<(), ConnectionError> {
         let address = format!("{}:{}", self.host, self.port);
         info!("Connecting to SSH server at {}", address);
-        
+
         let tcp = TcpStream::connect(&address)
             .map_err(|e| ConnectionError::Other(format!("TCP connect error: {}", e)))?;
         tcp.set_read_timeout(Some(Duration::from_millis(500)))
             .map_err(|e| ConnectionError::Other(format!("Set read timeout error: {}", e)))?;
         tcp.set_write_timeout(Some(Duration::from_millis(500)))
             .map_err(|e| ConnectionError::Other(format!("Set write timeout error: {}", e)))?;
-        
+
         let mut session = Session::new()
             .map_err(|e| ConnectionError::Other(format!("Failed to create SSH session: {}", e)))?;
         session.set_tcp_stream(tcp);
-        session.handshake().map_err(|e| ConnectionError::Other(format!("Handshake error: {}", e)))?;
-        session.userauth_password(&self.username, &self.password)
+        session
+            .handshake()
+            .map_err(|e| ConnectionError::Other(format!("Handshake error: {}", e)))?;
+        session
+            .userauth_password(&self.username, &self.password)
             .map_err(|e| ConnectionError::Other(format!("Authentication error: {}", e)))?;
-        
+
         if !session.authenticated() {
             return Err(ConnectionError::Other("SSH authentication failed".into()));
         }
-        
-        let mut channel = session.channel_session()
+
+        let mut channel = session
+            .channel_session()
             .map_err(|e| ConnectionError::Other(format!("Channel session error: {}", e)))?;
-        channel.request_pty("xterm", None, Some((80, 24, 0, 0)))
+        channel
+            .request_pty("xterm", None, Some((80, 24, 0, 0)))
             .map_err(|e| ConnectionError::Other(format!("Request pty error: {}", e)))?;
-        channel.shell().map_err(|e| ConnectionError::Other(format!("Shell error: {}", e)))?;
-        
+        channel
+            .shell()
+            .map_err(|e| ConnectionError::Other(format!("Shell error: {}", e)))?;
+
         self.inner = Some(channel);
         self.session = Some(session);
         info!("SSH connection established and shell channel opened.");
         Ok(())
     }
-    
+
     fn disconnect(&mut self) -> Result<(), ConnectionError> {
         if let Some(mut channel) = self.inner.take() {
-            channel.close().map_err(|e| ConnectionError::Other(format!("Close channel error: {}", e)))?;
-            channel.wait_close().map_err(|e| ConnectionError::Other(format!("Wait close error: {}", e)))?;
+            channel
+                .close()
+                .map_err(|e| ConnectionError::Other(format!("Close channel error: {}", e)))?;
+            channel
+                .wait_close()
+                .map_err(|e| ConnectionError::Other(format!("Wait close error: {}", e)))?;
             info!("SSH channel closed.");
         }
         self.session = None;
         Ok(())
     }
-    
+
     fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         if let Some(ref mut channel) = self.inner {
-            let bytes_written = channel.write(data)
+            let bytes_written = channel
+                .write(data)
                 .map_err(|e| ConnectionError::Other(format!("Write error: {}", e)))?;
-            channel.flush().map_err(|e| ConnectionError::Other(format!("Flush error: {}", e)))?;
+            channel
+                .flush()
+                .map_err(|e| ConnectionError::Other(format!("Flush error: {}", e)))?;
             Ok(bytes_written)
         } else {
             error!("SSH connection not established!");
             Err(ConnectionError::Other("Not connected".into()))
         }
     }
-    
+
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
         if let Some(ref mut channel) = self.inner {
-            channel.read(buffer)
+            channel
+                .read(buffer)
                 .map_err(|e| ConnectionError::Other(format!("Read error: {}", e)))
         } else {
             error!("SSH connection not established!");

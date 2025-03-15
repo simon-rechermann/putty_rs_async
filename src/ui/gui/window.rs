@@ -14,7 +14,12 @@ pub fn launch_gui(_args: Args) -> eframe::Result<()> {
     eframe::run_native(
         "putty_rs GUI",
         native_options,
-        Box::new(|_cc| Ok(Box::new(MyGuiApp::new(Some("/dev/pts/3".to_owned()), 115200)))),
+        Box::new(|_cc| {
+            Ok(Box::new(MyGuiApp::new(
+                Some("/dev/pts/3".to_owned()),
+                115200,
+            )))
+        }),
     )
 }
 

@@ -74,10 +74,15 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
     match args.protocol {
         Protocol::Serial { port, baud } => {
             run_serial_protocol(port, baud, &connection_manager, on_byte)?;
-        },
-        Protocol::Ssh { host, port, username, password } => {
+        }
+        Protocol::Ssh {
+            host,
+            port,
+            username,
+            password,
+        } => {
             run_ssh_protocol(host, port, username, password, &connection_manager, on_byte)?;
-        },
+        }
     }
 
     Ok(())
@@ -92,7 +97,8 @@ fn run_serial_protocol(
 ) -> Result<(), ConnectionError> {
     info!("Opening serial port: {} at {} baud", port, baud);
     let conn = SerialConnection::new(port.clone(), baud);
-    let handle: ConnectionHandle = connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
+    let handle: ConnectionHandle =
+        connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
 
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
@@ -138,9 +144,13 @@ fn run_ssh_protocol(
     connection_manager: &ConnectionManager,
     on_byte: impl Fn(u8) + Send + 'static,
 ) -> Result<(), ConnectionError> {
-    info!("Connecting to SSH server {}:{} as user {}", host, port, username);
+    info!(
+        "Connecting to SSH server {}:{} as user {}",
+        host, port, username
+    );
     let conn = SshConnection::new(host.clone(), port, username.clone(), password.clone());
-    let handle: ConnectionHandle = connection_manager.add_connection(host.clone(), Box::new(conn), on_byte)?;
+    let handle: ConnectionHandle =
+        connection_manager.add_connection(host.clone(), Box::new(conn), on_byte)?;
 
     info!("SSH session started. Press Ctrl+C to exit.");
     let mut buf = [0u8; 1];

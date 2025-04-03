@@ -101,7 +101,7 @@ fn run_ssh_protocol(
     port: u16,
     username: String,
     password: String,
-    connection_manager: &ConnectionManager
+    connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
     info!(
         "Connecting to SSH server {}:{} as user {}",
@@ -112,15 +112,17 @@ fn run_ssh_protocol(
 }
 
 // Run all protocols in raw mode to have full control over the terminal.
-fn run_cli_loop(connection_manager: &ConnectionManager, id: String, conn: Box<dyn Connection + Send>) -> Result<(), ConnectionError> {
-
+fn run_cli_loop(
+    connection_manager: &ConnectionManager,
+    id: String,
+    conn: Box<dyn Connection + Send>,
+) -> Result<(), ConnectionError> {
     // Callback for incoming bytes: simply print them to stdout.
     let on_byte = |byte: u8| {
         print!("{}", byte as char);
     };
 
-    let handle: ConnectionHandle =
-        connection_manager.add_connection(id.clone(), conn, on_byte)?;
+    let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn, on_byte)?;
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
     let mut last_was_ctrl_a = false;

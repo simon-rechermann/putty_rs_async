@@ -92,7 +92,7 @@ fn run_serial_protocol(
 ) -> Result<(), ConnectionError> {
     info!("Opening serial port: {} at {} baud", port, baud);
     let conn = SerialConnection::new(port.clone(), baud);
-    run_cli_loop(&connection_manager, port.clone(), Box::new(conn))
+    run_cli_loop(connection_manager, port.clone(), Box::new(conn))
 }
 
 /// Run the CLI for the SSH connection.
@@ -108,7 +108,7 @@ fn run_ssh_protocol(
         host, port, username
     );
     let conn: SshConnection = SshConnection::new(host.clone(), port, username, password);
-    run_cli_loop(&connection_manager, host.clone(), Box::new(conn))
+    run_cli_loop(connection_manager, host.clone(), Box::new(conn))
 }
 
 // Run all protocols in raw mode to have full control over the terminal.

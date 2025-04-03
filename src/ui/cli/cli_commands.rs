@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::{debug, info};
+use log::info;
 use std::io::{self, Read};
 
 use crate::connections::errors::ConnectionError;
@@ -99,40 +99,7 @@ fn run_serial_protocol(
     let conn = SerialConnection::new(port.clone(), baud);
     let handle: ConnectionHandle =
         connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
-
-    info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
-    set_raw_mode()?;
-    let mut last_was_ctrl_a = false;
-    let mut buf = [0u8; 1];
-    while io::stdin().read(&mut buf).is_ok() {
-        let ch = buf[0];
-
-        // If user typed Ctrl+A (ASCII 0x01), set a flag
-        if ch == 0x01 {
-            last_was_ctrl_a = true;
-            continue;
-        }
-
-        // If the previous character was Ctrl+A and the user typed 'x', exit
-        // and restore terminal mode
-        if last_was_ctrl_a && ch == b'x' {
-            restore_mode();
-            info!("Exiting...");
-            break;
-        } else {
-            last_was_ctrl_a = false;
-        }
-
-        // Optionally convert carriage return to something else
-        if ch == b'\r' {
-            let _ = handle.write_bytes(b"\r");
-        } else {
-            let _ = handle.write_bytes(&[ch]);
-        }
-    }
-    let _ = handle.stop();
-    info!("Terminal mode restored.");
-    Ok(())
+    run_cli_loop(handle)
 }
 
 /// Run the CLI for the SSH connection.
@@ -148,17 +115,41 @@ fn run_ssh_protocol(
         "Connecting to SSH server {}:{} as user {}",
         host, port, username
     );
-    let conn = SshConnection::new(host.clone(), port, username.clone(), password.clone());
+    let conn: SshConnection = SshConnection::new(host.clone(), port, username, password);
     let handle: ConnectionHandle =
         connection_manager.add_connection(host.clone(), Box::new(conn), on_byte)?;
+    run_cli_loop(handle)
+}
 
-    info!("SSH session started. Press Ctrl+C to exit.");
+// Run all protocols in raw mode to have full control over the terminal.
+fn run_cli_loop(handle: ConnectionHandle) -> Result<(), ConnectionError> {
+    info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
+    set_raw_mode()?;
+    let mut last_was_ctrl_a = false;
     let mut buf = [0u8; 1];
     while io::stdin().read(&mut buf).is_ok() {
         let ch = buf[0];
-        debug!("Read char: {} from stdin", ch);
-        let _ = handle.write_bytes(&[ch]);
+        // If user typed Ctrl+A (ASCII 0x01), set a flag.
+        if ch == 0x01 {
+            last_was_ctrl_a = true;
+            continue;
+        }
+        // If the previous character was Ctrl+A and the user typed 'x', exit and restore terminal mode.
+        if last_was_ctrl_a && ch == b'x' {
+            restore_mode();
+            info!("Exiting...");
+            break;
+        } else {
+            last_was_ctrl_a = false;
+        }
+        // Optionally convert carriage return to something else.
+        if ch == b'\r' {
+            let _ = handle.write_bytes(b"\r");
+        } else {
+            let _ = handle.write_bytes(&[ch]);
+        }
     }
     let _ = handle.stop();
+    info!("Terminal mode restored.");
     Ok(())
 }

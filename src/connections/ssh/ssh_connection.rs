@@ -56,6 +56,7 @@ impl Connection for SshConnection {
             return Err(ConnectionError::Other("SSH authentication failed".into()));
         }
 
+        // Create the channel while still in blocking mode.
         let mut channel = session
             .channel_session()
             .map_err(|e| ConnectionError::Other(format!("Channel session error: {}", e)))?;
@@ -65,6 +66,9 @@ impl Connection for SshConnection {
         channel
             .shell()
             .map_err(|e| ConnectionError::Other(format!("Shell error: {}", e)))?;
+
+        // Now switch the session (and associated channel) to nonblocking mode.
+        session.set_blocking(false);
 
         self.inner = Some(channel);
         self.session = Some(session);
@@ -88,6 +92,30 @@ impl Connection for SshConnection {
 
     fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         if let Some(ref mut channel) = self.inner {
+            // Drain any pending incoming data.
+            let mut dummy = [0u8; 256];
+            loop {
+                match channel.read(&mut dummy) {
+                    Ok(0) => {
+                        // No more data.
+                        break;
+                    }
+                    Ok(n) => {
+                        debug!("Drained {} bytes from incoming flow", n);
+                        // Continue draining.
+                    }
+                    Err(e) if e.to_string().contains("WouldBlock") => {
+                        // Nothing more to drain.
+                        break;
+                    }
+                    Err(e) => {
+                        debug!("Drain error (ignored): {:?}", e);
+                        break;
+                    }
+                }
+            }
+    
+            // Now write the data.
             let bytes_written = channel
                 .write(data)
                 .map_err(|e| ConnectionError::Other(format!("Write error: {}", e)))?;
@@ -107,7 +135,7 @@ impl Connection for SshConnection {
             channel
                 .read(buffer)
                 .map_err(|e| ConnectionError::Other(format!("Read error: {}", e)))
-        } else {
+                            } else {
             error!("SSH connection not established!");
             Err(ConnectionError::Other("Not connected".into()))
         }

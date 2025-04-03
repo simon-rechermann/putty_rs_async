@@ -71,6 +71,7 @@ impl ConnectionManager {
             let mut buf = [0u8; 256];
 
             loop {
+                debug!("I/O thread loop tick for '{}'", id_clone);
                 // Check for any writes or Stop
                 match rx.try_recv() {
                     Ok(IoEvent::Write(data)) => {
@@ -93,11 +94,14 @@ impl ConnectionManager {
                 }
 
                 // Attempt to read
+                debug!("About to read from connection '{}'", id_clone);
                 match conn.read(&mut buf) {
                     Ok(0) => {
+                        debug!("Read 0 bytes from '{}'", id_clone);
                         // no data this cycle
                     }
                     Ok(n) => {
+                        debug!("Read {} bytes from '{}'", n, id_clone);
                         for &byte in &buf[..n] {
                             on_byte(byte);
                         }
@@ -139,20 +143,20 @@ impl ConnectionManager {
     /// Write bytes to a specific connection by ID.
     pub fn write_bytes(&self, id: &str, data: &[u8]) -> Result<usize, ConnectionError> {
         let map = self.inner.lock().unwrap();
-        if let Some(record) = map.get(id) {
+                if let Some(record) = map.get(id) {
             debug!("write: {:?}", data.to_vec());
             record
                 .tx
                 .send(IoEvent::Write(data.to_vec()))
                 .map_err(|_| ConnectionError::Other("Channel closed".into()))?;
             Ok(data.len())
-        } else {
-            Err(ConnectionError::Other(format!(
-                "No connection with id '{}'",
-                id
-            )))
-        }
-    }
+                } else {
+                    Err(ConnectionError::Other(format!(
+                        "No connection with id '{}'",
+                        id
+                    )))
+                }
+            }
 
     /// Stop one specific connection by ID (send Stop, join the thread, remove from map).
     pub fn stop_connection(&self, id: &str) -> Result<(), ConnectionError> {

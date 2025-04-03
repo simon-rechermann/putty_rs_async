@@ -6,6 +6,7 @@ use std::io::{self, Read};
 use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
 use crate::connections::ssh::ssh_connection::SshConnection;
+use crate::connections::Connection;
 use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
@@ -66,14 +67,9 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
     // Create a ConnectionManager to manage connections.
     let connection_manager = ConnectionManager::new();
 
-    // Callback for incoming bytes: simply print them to stdout.
-    let on_byte = |byte: u8| {
-        print!("{}", byte as char);
-    };
-
     match args.protocol {
         Protocol::Serial { port, baud } => {
-            run_serial_protocol(port, baud, &connection_manager, on_byte)?;
+            run_serial_protocol(port, baud, &connection_manager)?;
         }
         Protocol::Ssh {
             host,
@@ -81,7 +77,7 @@ pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
             username,
             password,
         } => {
-            run_ssh_protocol(host, port, username, password, &connection_manager, on_byte)?;
+            run_ssh_protocol(host, port, username, password, &connection_manager)?;
         }
     }
 
@@ -93,13 +89,10 @@ fn run_serial_protocol(
     port: String,
     baud: u32,
     connection_manager: &ConnectionManager,
-    on_byte: impl Fn(u8) + Send + 'static,
 ) -> Result<(), ConnectionError> {
     info!("Opening serial port: {} at {} baud", port, baud);
     let conn = SerialConnection::new(port.clone(), baud);
-    let handle: ConnectionHandle =
-        connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
-    run_cli_loop(handle)
+    run_cli_loop(&connection_manager, port.clone(), Box::new(conn))
 }
 
 /// Run the CLI for the SSH connection.
@@ -108,21 +101,26 @@ fn run_ssh_protocol(
     port: u16,
     username: String,
     password: String,
-    connection_manager: &ConnectionManager,
-    on_byte: impl Fn(u8) + Send + 'static,
+    connection_manager: &ConnectionManager
 ) -> Result<(), ConnectionError> {
     info!(
         "Connecting to SSH server {}:{} as user {}",
         host, port, username
     );
     let conn: SshConnection = SshConnection::new(host.clone(), port, username, password);
-    let handle: ConnectionHandle =
-        connection_manager.add_connection(host.clone(), Box::new(conn), on_byte)?;
-    run_cli_loop(handle)
+    run_cli_loop(&connection_manager, host.clone(), Box::new(conn))
 }
 
 // Run all protocols in raw mode to have full control over the terminal.
-fn run_cli_loop(handle: ConnectionHandle) -> Result<(), ConnectionError> {
+fn run_cli_loop(connection_manager: &ConnectionManager, id: String, conn: Box<dyn Connection + Send>) -> Result<(), ConnectionError> {
+
+    // Callback for incoming bytes: simply print them to stdout.
+    let on_byte = |byte: u8| {
+        print!("{}", byte as char);
+    };
+
+    let handle: ConnectionHandle =
+        connection_manager.add_connection(id.clone(), conn, on_byte)?;
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
     let mut last_was_ctrl_a = false;

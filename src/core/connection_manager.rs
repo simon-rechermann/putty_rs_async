@@ -143,20 +143,20 @@ impl ConnectionManager {
     /// Write bytes to a specific connection by ID.
     pub fn write_bytes(&self, id: &str, data: &[u8]) -> Result<usize, ConnectionError> {
         let map = self.inner.lock().unwrap();
-                if let Some(record) = map.get(id) {
+        if let Some(record) = map.get(id) {
             debug!("write: {:?}", data.to_vec());
             record
                 .tx
                 .send(IoEvent::Write(data.to_vec()))
                 .map_err(|_| ConnectionError::Other("Channel closed".into()))?;
             Ok(data.len())
-                } else {
-                    Err(ConnectionError::Other(format!(
-                        "No connection with id '{}'",
-                        id
-                    )))
-                }
-            }
+        } else {
+            Err(ConnectionError::Other(format!(
+                "No connection with id '{}'",
+                id
+            )))
+        }
+    }
 
     /// Stop one specific connection by ID (send Stop, join the thread, remove from map).
     pub fn stop_connection(&self, id: &str) -> Result<(), ConnectionError> {

@@ -114,7 +114,7 @@ impl Connection for SshConnection {
                     }
                 }
             }
-    
+
             // Now write the data.
             let bytes_written = channel
                 .write(data)
@@ -135,7 +135,7 @@ impl Connection for SshConnection {
             channel
                 .read(buffer)
                 .map_err(|e| ConnectionError::Other(format!("Read error: {}", e)))
-                            } else {
+        } else {
             error!("SSH connection not established!");
             Err(ConnectionError::Other("Not connected".into()))
         }

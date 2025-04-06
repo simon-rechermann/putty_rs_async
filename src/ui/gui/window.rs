@@ -8,12 +8,18 @@ use crate::connections::serial::SerialConnection;
 use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 use crate::ui::cli::cli_commands::Args;
 
-pub fn launch_gui(args: Args) -> eframe::Result<()> {
+pub fn launch_gui(_args: Args) -> eframe::Result<()> {
     let native_options = eframe::NativeOptions::default();
+    // For now, GUI always uses serial connection defaults.
     eframe::run_native(
         "putty_rs GUI",
         native_options,
-        Box::new(|_cc| Ok(Box::new(MyGuiApp::new(args.port, args.baud)))),
+        Box::new(|_cc| {
+            Ok(Box::new(MyGuiApp::new(
+                Some("/dev/pts/3".to_owned()),
+                115200,
+            )))
+        }),
     )
 }
 
@@ -149,7 +155,6 @@ impl MyGuiApp {
 
         let text_ref = self.incoming_text.clone();
         // Callback for every received byte from this port
-        // (Currently we combine all ports' data in the same text buffer.)
         let on_byte = move |byte: u8| {
             let mut guard = text_ref.lock().unwrap();
             guard.push(byte as char);
@@ -174,7 +179,6 @@ impl MyGuiApp {
 
     /// Disconnect the *current* port in the text field (if we have a handle for it).
     fn disconnect(&mut self) {
-        // If a handle for `self.port` is in the map, remove it and stop.
         if let Some(handle) = self.connection_handles.remove(&self.port) {
             if let Err(e) = handle.stop() {
                 error!("Error stopping connection {}: {:?}", self.port, e);

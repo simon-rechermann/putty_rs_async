@@ -1,10 +1,12 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::{error, info};
+use log::info;
 use std::io::{self, Read};
 
 use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
+use crate::connections::ssh::ssh_connection::SshConnection;
+use crate::connections::Connection;
 use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
@@ -20,91 +22,134 @@ fn restore_mode() {
     let _ = disable_raw_mode();
 }
 
-/// Command-line arguments struct.
+/// Command-line arguments.
 #[derive(Parser, Debug)]
-#[command(name = "putty_rs", version = "0.1.0")]
+#[command(name = "putty_rs", version = "0.1.0", subcommand_required = true)]
 pub struct Args {
     /// Launch in GUI mode
     #[arg(long)]
     pub gui: bool,
 
-    /// Serial port to open (default on UNIX: `/dev/pts/3`)
-    /// If you're on Windows, you might specify something like `COM3`.
-    #[arg(long, default_value = "/dev/pts/3")]
-    pub port: Option<String>,
+    #[command(subcommand)]
+    pub protocol: Protocol,
+}
 
-    #[arg(long, default_value_t = 115200)]
-    pub baud: u32,
+#[derive(Subcommand, Debug)]
+pub enum Protocol {
+    /// Use a serial connection
+    Serial {
+        /// Serial port to open (default on UNIX: `/dev/pts/3`)
+        /// If you're on Windows, you might specify something like `COM3`.
+        #[arg(long, default_value = "/dev/pts/3")]
+        port: String,
+        /// Baud rate (default 115200)
+        #[arg(long, default_value_t = 115200)]
+        baud: u32,
+    },
+    /// Use an SSH connection
+    Ssh {
+        /// SSH server host
+        #[arg(long)]
+        host: String,
+        /// SSH server port (default 22)
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        /// Username for SSH authentication
+        #[arg(long)]
+        username: String,
+        /// Password for SSH authentication
+        #[arg(long, default_value = "")]
+        password: String,
+    },
 }
 
 pub fn run_cli(args: Args) -> Result<(), ConnectionError> {
-    if let Some(port) = args.port {
-        info!("Opening serial port: {} at {} baud", port, args.baud);
+    // Create a ConnectionManager to manage connections.
+    let connection_manager = ConnectionManager::new();
 
-        // 1) Create a ConnectionManager to manage one or more connections
-        let connection_manager = ConnectionManager::new();
-
-        // 2) Build a SerialConnection
-        let conn = SerialConnection::new(port.clone(), args.baud);
-
-        // 3) Provide a callback for incoming bytes
-        //    In this example, we simply print them to stdout.
-        let on_byte = move |byte: u8| {
-            // We ignore '_conn_id' since we only have one connection in CLI mode
-            if byte == b'\r' {
-                print!("\r");
-            } else {
-                print!("{}", byte as char);
-            }
-        };
-
-        // 4) Add the connection to the Session
-        let handle: ConnectionHandle =
-            connection_manager.add_connection(port.clone(), Box::new(conn), on_byte)?;
-
-        info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
-        // Put terminal in raw mode (cross-platform with crossterm)
-        set_raw_mode()?;
-
-        let mut last_was_ctrl_a = false;
-        let mut buf = [0u8; 1];
-
-        // 5) Main loop reading from stdin, sending each char to the connection
-        //    Because we're in raw mode, each typed character is read immediately.
-        while io::stdin().read(&mut buf).is_ok() {
-            let ch = buf[0];
-
-            // If user typed Ctrl+A (ASCII 0x01), set a flag
-            if ch == 0x01 {
-                last_was_ctrl_a = true;
-                continue;
-            }
-
-            // If the previous character was Ctrl+A and the user typed 'x', exit
-            // and restore terminal mode
-            if last_was_ctrl_a && ch == b'x' {
-                restore_mode();
-                info!("Exiting...");
-                break;
-            } else {
-                last_was_ctrl_a = false;
-            }
-
-            // Optionally convert carriage return to something else
-            if ch == b'\r' {
-                let _ = handle.write_bytes(b"\r");
-            } else {
-                let _ = handle.write_bytes(&[ch]);
-            }
+    match args.protocol {
+        Protocol::Serial { port, baud } => {
+            run_serial_protocol(port, baud, &connection_manager)?;
         }
-
-        // 6) Stop the connection
-        let _ = handle.stop();
-        info!("Terminal mode restored.");
-    } else {
-        error!("No --port argument provided.");
-        error!("Usage: putty_rs --port /dev/ttyUSB0 --baud 115200");
+        Protocol::Ssh {
+            host,
+            port,
+            username,
+            password,
+        } => {
+            run_ssh_protocol(host, port, username, password, &connection_manager)?;
+        }
     }
 
+    Ok(())
+}
+
+/// Run the CLI for the serial connection.
+fn run_serial_protocol(
+    port: String,
+    baud: u32,
+    connection_manager: &ConnectionManager,
+) -> Result<(), ConnectionError> {
+    info!("Opening serial port: {} at {} baud", port, baud);
+    let conn = SerialConnection::new(port.clone(), baud);
+    run_cli_loop(connection_manager, port.clone(), Box::new(conn))
+}
+
+/// Run the CLI for the SSH connection.
+fn run_ssh_protocol(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    connection_manager: &ConnectionManager,
+) -> Result<(), ConnectionError> {
+    info!(
+        "Connecting to SSH server {}:{} as user {}",
+        host, port, username
+    );
+    let conn: SshConnection = SshConnection::new(host.clone(), port, username, password);
+    run_cli_loop(connection_manager, host.clone(), Box::new(conn))
+}
+
+// Run all protocols in raw mode to have full control over the terminal.
+fn run_cli_loop(
+    connection_manager: &ConnectionManager,
+    id: String,
+    conn: Box<dyn Connection + Send>,
+) -> Result<(), ConnectionError> {
+    // Callback for incoming bytes: simply print them to stdout.
+    let on_byte = |byte: u8| {
+        print!("{}", byte as char);
+    };
+
+    let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn, on_byte)?;
+    info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
+    set_raw_mode()?;
+    let mut last_was_ctrl_a = false;
+    let mut buf = [0u8; 1];
+    while io::stdin().read(&mut buf).is_ok() {
+        let ch = buf[0];
+        // If user typed Ctrl+A (ASCII 0x01), set a flag.
+        if ch == 0x01 {
+            last_was_ctrl_a = true;
+            continue;
+        }
+        // If the previous character was Ctrl+A and the user typed 'x', exit and restore terminal mode.
+        if last_was_ctrl_a && ch == b'x' {
+            restore_mode();
+            info!("Exiting...");
+            break;
+        } else {
+            last_was_ctrl_a = false;
+        }
+        // Optionally convert carriage return to something else.
+        if ch == b'\r' {
+            let _ = handle.write_bytes(b"\r");
+        } else {
+            let _ = handle.write_bytes(&[ch]);
+        }
+    }
+    let _ = handle.stop();
+    info!("Terminal mode restored.");
     Ok(())
 }

@@ -5,8 +5,18 @@ The complete documentation is available in docs/index.adoc
 
 ## Usage
 
+There is is command line interface (cli) and a graphical user interface (gui) available.
+
+The gui does not expect any additional parameters.
+
 ```bash
-cargo run -- --help
+cargo run --bin gui
+```
+
+The cli expects additional parameters. To get information about it you can run the following command.
+
+```bash
+cargo run --bin cli -- --help
 ```
 
 ## Lib dependencies
@@ -23,12 +33,14 @@ sudo apt-get install libssl-dev
 ```bash
 socat -d -d pty,raw,echo=0 pty,raw,echo=0 # Create two connected virtual serial devices e.g. /dev/pts/2 and /dev/pts/3
 # Connect a programm like putty to /dev/pts/2 or just launch putty-rs twice
-cargo run -- serial --port /dev/pts/2 # run putty-rs and connect it to /dev/pts/2
-cargo run -- serial --port /dev/pts/3 # run putty-rs and connect it to /dev/pts/3
+cargo run --bin cli -- serial --port /dev/pts/2 # run putty-rs and connect it to /dev/pts/2
+cargo run --bin cli -- serial --port /dev/pts/3 # run putty-rs and connect it to /dev/pts/3
 ```
 
 ## Test ssh connection
 
+To be able to connect to a ssh server you need to specify some parameters.
+
 ```bash
-cargo run -- ssh --help
+cargo run --bin cli -- ssh --help
 ```

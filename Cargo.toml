@@ -3,6 +3,17 @@ name = "putty_rs"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "cli"
+path = "src/bin/cli.rs"
+
+[[bin]]
+name = "gui"
+path = "src/bin/gui.rs"
+
 [dependencies]
 serialport = "4.6" # 4.7 does not work for pseudo terminal created with socat anymore!
 clap = { version = "4.5", features = ["derive"] }

@@ -40,6 +40,12 @@ pub struct ConnectionManager {
     inner: Arc<Mutex<HashMap<String, ConnectionIOThread>>>,
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     /// Create an empty ConnectionManager.
     pub fn new() -> Self {

@@ -6,9 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::connections::serial::SerialConnection;
 use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
-use crate::ui::cli::cli_commands::Args;
 
-pub fn launch_gui(_args: Args) -> eframe::Result<()> {
+pub fn launch_gui() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions::default();
     // For now, GUI always uses serial connection defaults.
     eframe::run_native(

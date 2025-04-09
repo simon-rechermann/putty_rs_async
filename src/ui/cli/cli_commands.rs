@@ -7,6 +7,7 @@ use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
 use crate::connections::ssh::SshConnection;
 use crate::connections::Connection;
+use std::io::Write;
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
@@ -100,8 +101,11 @@ async fn run_cli_loop(
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
     // Callback for incoming bytes: print them to stdout.
+    // This prints the user input to the terminal as well as remotes (ssh, serial)
+    // typically echo back the input they get (remote echo).
     let on_byte = |byte: u8| {
         print!("{}", byte as char);
+        std::io::stdout().flush().ok();
     };
     
     let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn, on_byte).await?;

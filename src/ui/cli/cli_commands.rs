@@ -1,13 +1,13 @@
-use clap::{Parser, Subcommand};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::info;
-use tokio::io::{self, AsyncReadExt};
-use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 use crate::connections::errors::ConnectionError;
 use crate::connections::serial::SerialConnection;
 use crate::connections::ssh::SshConnection;
 use crate::connections::Connection;
+use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
+use clap::{Parser, Subcommand};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use log::info;
 use std::io::Write;
+use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
@@ -26,7 +26,6 @@ fn restore_mode() {
 #[derive(Parser, Debug)]
 #[command(name = "putty_rs", version = "0.1.0", subcommand_required = true)]
 pub struct Args {
-    
     #[command(subcommand)]
     pub protocol: Protocol,
 }
@@ -61,14 +60,19 @@ pub enum Protocol {
 
 pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
     let connection_manager = ConnectionManager::new();
-    
+
     match args.protocol {
         Protocol::Serial { port, baud } => {
             run_serial_protocol(port, baud, &connection_manager).await?;
-        },
-        Protocol::Ssh { host, port, username, password } => {
+        }
+        Protocol::Ssh {
+            host,
+            port,
+            username,
+            password,
+        } => {
             run_ssh_protocol(host, port, username, password, &connection_manager).await?;
-        },
+        }
     }
     Ok(())
 }
@@ -90,7 +94,10 @@ async fn run_ssh_protocol(
     password: String,
     connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
-    info!("Connecting to SSH server {}:{} as user {}", host, port, username);
+    info!(
+        "Connecting to SSH server {}:{} as user {}",
+        host, port, username
+    );
     let conn = SshConnection::new(host.clone(), port, username, password);
     run_cli_loop(connection_manager, host, Box::new(conn)).await
 }
@@ -107,11 +114,13 @@ async fn run_cli_loop(
         print!("{}", byte as char);
         std::io::stdout().flush().ok();
     };
-    
-    let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn, on_byte).await?;
+
+    let handle: ConnectionHandle = connection_manager
+        .add_connection(id.clone(), conn, on_byte)
+        .await?;
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
-    
+
     let mut last_was_ctrl_a = false;
     let mut buf = [0u8; 1];
     let mut stdin = io::stdin();

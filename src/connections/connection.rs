@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::connections::errors::ConnectionError;
+use async_trait::async_trait;
 
 /// A trait representing a generic connection (serial, SSH, etc.).
 #[async_trait]

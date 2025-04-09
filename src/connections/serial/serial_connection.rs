@@ -1,9 +1,9 @@
-use tokio_serial::{SerialStream, SerialPortBuilderExt}; // Import SerialPortBuilderExt for open_native_async
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use std::time::Duration;
-use async_trait::async_trait;
 use crate::connections::connection::Connection;
 use crate::connections::errors::ConnectionError;
+use async_trait::async_trait;
+use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_serial::{SerialPortBuilderExt, SerialStream}; // Import SerialPortBuilderExt for open_native_async
 
 #[derive(Debug)]
 pub struct SerialConnection {
@@ -26,18 +26,18 @@ impl SerialConnection {
 impl Connection for SerialConnection {
     async fn connect(&mut self) -> Result<(), ConnectionError> {
         log::info!("Attempting to open serial port: {}", self.port_path);
-        let builder = tokio_serial::new(&self.port_path, self.baud_rate)
-            .timeout(Duration::from_millis(10));
+        let builder =
+            tokio_serial::new(&self.port_path, self.baud_rate).timeout(Duration::from_millis(10));
         match builder.open_native_async() {
             Ok(port) => {
                 log::info!("Successfully opened serial port: {}", self.port_path);
                 self.inner = Some(port);
                 Ok(())
-            },
-            Err(e) => Err(ConnectionError::from(e))
+            }
+            Err(e) => Err(ConnectionError::from(e)),
         }
     }
-    
+
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
         if self.inner.is_some() {
             log::info!("Closing serial port: {}", self.port_path);
@@ -45,7 +45,7 @@ impl Connection for SerialConnection {
         self.inner = None;
         Ok(())
     }
-    
+
     async fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
             let bytes_written = port
@@ -61,7 +61,7 @@ impl Connection for SerialConnection {
             Err(ConnectionError::Other("Not connected".into()))
         }
     }
-    
+
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
             let n = port

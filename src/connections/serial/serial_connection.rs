@@ -1,20 +1,20 @@
-use log::{error, info};
-use serialport::SerialPort;
+use tokio_serial::SerialStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::time::Duration;
+use async_trait::async_trait;
+use crate::connections::connection::Connection;
+use crate::connections::errors::ConnectionError;
 
-use crate::connections::{Connection, ConnectionError};
-
-/// A struct that holds info about our serial connection.
 #[derive(Debug)]
 pub struct SerialConnection {
     port_path: String,
     baud_rate: u32,
-    inner: Option<Box<dyn SerialPort>>,
+    inner: Option<SerialStream>,
 }
 
 impl SerialConnection {
     pub fn new(port_path: String, baud_rate: u32) -> Self {
-        SerialConnection {
+        Self {
             port_path,
             baud_rate,
             inner: None,
@@ -22,48 +22,55 @@ impl SerialConnection {
     }
 }
 
+#[async_trait]
 impl Connection for SerialConnection {
-    fn connect(&mut self) -> Result<(), ConnectionError> {
-        info!("Attempting to open serial port: {}", self.port_path);
-
-        // Use a short timeout (e.g. 10ms) so the read loop won't block forever.
-        // This allows the thread to periodically check stop flags.
-        let serial_port = serialport::new(&self.port_path, self.baud_rate)
-            .timeout(Duration::from_millis(10))
-            .open()?;
-
-        info!("Successfully opened serial port: {}", self.port_path);
-
-        self.inner = Some(serial_port);
-        Ok(())
+    async fn connect(&mut self) -> Result<(), ConnectionError> {
+        log::info!("Attempting to open serial port: {}", self.port_path);
+        let builder = tokio_serial::new(&self.port_path, self.baud_rate)
+            .timeout(Duration::from_millis(10));
+        match builder.open_native_async() {
+            Ok(port) => {
+                log::info!("Successfully opened serial port: {}", self.port_path);
+                self.inner = Some(port);
+                Ok(())
+            },
+            Err(e) => Err(ConnectionError::from(e))
+        }
     }
-
-    fn disconnect(&mut self) -> Result<(), ConnectionError> {
+    
+    async fn disconnect(&mut self) -> Result<(), ConnectionError> {
         if self.inner.is_some() {
-            info!("Closing serial port: {}", self.port_path);
+            log::info!("Closing serial port: {}", self.port_path);
         }
         self.inner = None;
         Ok(())
     }
-
-    fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
+    
+    async fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
-            let bytes_written = port.write(data).map_err(ConnectionError::from)?;
-            port.flush().map_err(ConnectionError::from)?;
+            let bytes_written = port
+                .write(data)
+                .await
+                .map_err(|e| ConnectionError::Other(e.to_string()))?;
+            port.flush()
+                .await
+                .map_err(|e| ConnectionError::Other(e.to_string()))?;
             Ok(bytes_written)
         } else {
-            error!("Cannot write: serial port not connected!");
+            log::error!("Cannot write: serial port not connected!");
             Err(ConnectionError::Other("Not connected".into()))
         }
     }
-
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
+    
+    async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
         if let Some(port) = self.inner.as_mut() {
-            // This will return Ok(0) if the read times out, or a real number of bytes if data arrives.
-            // If there's an actual error, it returns Err(...).
-            port.read(buffer).map_err(ConnectionError::from)
+            let n = port
+                .read(buffer)
+                .await
+                .map_err(|e| ConnectionError::Other(e.to_string()))?;
+            Ok(n)
         } else {
-            error!("Cannot read: serial port not connected!");
+            log::error!("Cannot read: serial port not connected!");
             Err(ConnectionError::Other("Not connected".into()))
         }
     }

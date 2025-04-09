@@ -15,10 +15,10 @@ impl From<std::io::Error> for ConnectionError {
     }
 }
 
-/// Convert from serialport::Error.
-/// Without this, `map_err(ConnectionError::from)` won't work when using `serialport`.
-impl From<serialport::Error> for ConnectionError {
-    fn from(err: serialport::Error) -> Self {
+/// Convert from tokio_serial::Error.
+/// Without this, `map_err(ConnectionError::from)` won't work when using `tokio_serial`.
+impl From<tokio_serial::Error> for ConnectionError {
+    fn from(err: tokio_serial::Error) -> Self {
         ConnectionError::PortError(err.to_string())
     }
 }

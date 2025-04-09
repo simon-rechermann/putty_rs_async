@@ -15,11 +15,11 @@ name = "gui"
 path = "src/bin/gui.rs"
 
 [dependencies]
-serialport = "4.6" # 4.7 does not work for pseudo terminal created with socat anymore!
+tokio = { version = "1.27", features = ["full"] }
+async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"] }
-log = "0.4"
 env_logger = "0.11"
+log = "0.4"
 crossterm = "0.28"
-# Add eframe for a minimal native window
-eframe = "0.30"
+tokio-serial = "5.4.5"
 ssh2 = "0.9"

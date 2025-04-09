@@ -120,7 +120,8 @@ impl Connection for SshConnection {
         if let Some(inner) = &self.inner {
             let data_vec = data.to_vec();
             let inner_clone = inner.clone();
-            let bytes_written = task::spawn_blocking(move || {
+            
+            task::spawn_blocking(move || {
                 let mut channel = inner_clone.blocking_lock();
                 // Drain any pending incoming data.
                 let mut dummy = [0u8; 256];
@@ -146,8 +147,7 @@ impl Connection for SshConnection {
                 Ok(bytes_written)
             })
             .await
-            .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?;
-            bytes_written
+            .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?
         } else {
             error!("SSH connection not established!");
             Err(ConnectionError::Other("Not connected".into()))

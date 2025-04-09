@@ -1,4 +1,4 @@
-use tokio_serial::SerialStream;
+use tokio_serial::{SerialStream, SerialPortBuilderExt}; // Import SerialPortBuilderExt for open_native_async
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::time::Duration;
 use async_trait::async_trait;

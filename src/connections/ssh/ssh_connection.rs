@@ -120,7 +120,7 @@ impl Connection for SshConnection {
         if let Some(inner) = &self.inner {
             let data_vec = data.to_vec();
             let inner_clone = inner.clone();
-            
+
             task::spawn_blocking(move || {
                 let mut channel = inner_clone.blocking_lock();
                 // Drain any pending incoming data.

@@ -1,7 +1,7 @@
 mod ui;
 
-use clap::Parser;
 use crate::ui::cli;
+use clap::Parser;
 use putty_core::utils::logging::init_logging;
 
 #[tokio::main]

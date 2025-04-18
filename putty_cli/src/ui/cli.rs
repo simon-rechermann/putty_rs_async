@@ -1,11 +1,11 @@
+use clap::{Parser, Subcommand};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use log::info;
 use putty_core::connections::errors::ConnectionError;
 use putty_core::connections::serial::SerialConnection;
 use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 use putty_core::core::connection_manager::{ConnectionHandle, ConnectionManager};
-use clap::{Parser, Subcommand};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use log::info;
 use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.

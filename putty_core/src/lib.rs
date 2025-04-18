@@ -3,4 +3,4 @@ pub mod core;
 pub mod utils;
 
 // re‑export ergonomic entry points
-pub use core::connection_manager::{ConnectionManager, ConnectionHandle};
+pub use core::connection_manager::{ConnectionHandle, ConnectionManager};

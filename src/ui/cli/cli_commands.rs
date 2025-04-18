@@ -102,6 +102,12 @@ async fn run_ssh_protocol(
     run_cli_loop(connection_manager, host, Box::new(conn)).await
 }
 
+/// Runs the CLI loop for a given connection.
+/// 
+/// This function registers a connection by passing ownership of the Connection trait object
+/// (via `Box<dyn Connection + Send + Unpin>`)
+/// to the connection manager, enables raw terminal mode, and reads user input to write to the connection.
+/// It exits when the user types Ctrl+A followed by 'x', 
 async fn run_cli_loop(
     connection_manager: &ConnectionManager,
     id: String,

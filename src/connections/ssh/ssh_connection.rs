@@ -1,33 +1,42 @@
-use crate::connections::connection::Connection;
-use crate::connections::errors::ConnectionError;
+use crate::connections::{connection::Connection, errors::ConnectionError};
 use async_trait::async_trait;
-use log::{debug, error, info};
-use ssh2::{Channel, Session};
-use std::io::{Read, Write}; // Import Read and Write traits
-use std::net::TcpStream;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::Mutex;
-use tokio::task;
+use log::{error, info};
+use ssh2::Session;
+
+use std::io::ErrorKind;
+use std::{
+    collections::VecDeque,
+    io::{Read, Write},
+    net::TcpStream,
+    thread,
+    time::Duration,
+};
+use tokio::sync::mpsc;
 
 pub struct SshConnection {
-    pub host: String,
-    pub port: u16,
-    pub username: String,
-    pub password: String,
-    inner: Option<Arc<Mutex<Channel>>>,
-    session: Option<Session>,
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+
+    write_tx: Option<mpsc::Sender<Vec<u8>>>,
+    read_rx:  Option<mpsc::Receiver<Vec<u8>>>,
+
+    leftovers: VecDeque<u8>,
+    worker:    Option<thread::JoinHandle<()>>,
 }
 
 impl SshConnection {
     pub fn new(host: String, port: u16, username: String, password: String) -> Self {
-        SshConnection {
+        Self {
             host,
             port,
             username,
             password,
-            inner: None,
-            session: None,
+            write_tx: None,
+            read_rx: None,
+            leftovers: VecDeque::new(),
+            worker: None,
         }
     }
 }
@@ -35,150 +44,132 @@ impl SshConnection {
 #[async_trait]
 impl Connection for SshConnection {
     async fn connect(&mut self) -> Result<(), ConnectionError> {
-        let host = self.host.clone();
-        let port = self.port;
-        let username = self.username.clone();
-        let password = self.password.clone();
+        let addr      = format!("{}:{}", self.host, self.port);
+        let username  = self.username.clone();
+        let password  = self.password.clone();
 
-        info!("Connecting to SSH server at {}:{}", host, port);
+        let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
+        let (read_tx,  read_rx)      = mpsc::channel::<Vec<u8>>(32);
 
-        let result = task::spawn_blocking(move || {
-            let address = format!("{}:{}", host, port);
-            let tcp = TcpStream::connect(&address)
-                .map_err(|e| ConnectionError::Other(format!("TCP connect error: {}", e)))?;
-            tcp.set_read_timeout(Some(Duration::from_millis(500)))
-                .map_err(|e| ConnectionError::Other(format!("Set read timeout error: {}", e)))?;
-            tcp.set_write_timeout(Some(Duration::from_millis(500)))
-                .map_err(|e| ConnectionError::Other(format!("Set write timeout error: {}", e)))?;
+        info!("Connecting to SSH server at {}", addr);
 
-            let mut session = Session::new().map_err(|e| {
-                ConnectionError::Other(format!("Failed to create SSH session: {}", e))
-            })?;
+        // ---------------- blocking worker -----------------------------
+        let worker = thread::spawn(move || {
+            // ---- establish session & channel --------------------------
+            let tcp = match TcpStream::connect(&addr) {
+                Ok(t) => t,
+                Err(e) => { error!("TCP connect error: {}", e); return; }
+            };
+
+            tcp.set_read_timeout(Some(Duration::from_millis(500))).ok();
+            tcp.set_write_timeout(Some(Duration::from_millis(500))).ok();
+
+            let mut session = match Session::new() {
+                Ok(s) => s,
+                Err(e) => { error!("Failed to create SSH session: {}", e); return; }
+            };
             session.set_tcp_stream(tcp);
-            session
-                .handshake()
-                .map_err(|e| ConnectionError::Other(format!("Handshake error: {}", e)))?;
-            session
-                .userauth_password(&username, &password)
-                .map_err(|e| ConnectionError::Other(format!("Authentication error: {}", e)))?;
-
+            if let Err(e) = session.handshake() {
+                error!("Handshake error: {}", e); return;
+            }
+            if let Err(e) = session.userauth_password(&username, &password) {
+                error!("Authentication error: {}", e); return;
+            }
             if !session.authenticated() {
-                return Err(ConnectionError::Other("SSH authentication failed".into()));
+                error!("SSH authentication failed"); return;
             }
 
-            let mut channel = session
-                .channel_session()
-                .map_err(|e| ConnectionError::Other(format!("Channel session error: {}", e)))?;
-            channel
-                .request_pty("xterm", None, Some((80, 24, 0, 0)))
-                .map_err(|e| ConnectionError::Other(format!("Request pty error: {}", e)))?;
-            channel
-                .shell()
-                .map_err(|e| ConnectionError::Other(format!("Shell error: {}", e)))?;
-
+            let mut channel = match session.channel_session() {
+                Ok(c) => c,
+                Err(e) => { error!("Channel error: {}", e); return; }
+            };
+            channel.request_pty("xterm", None, Some((80, 24, 0, 0))).ok();
+            channel.shell().ok();
             session.set_blocking(false);
 
-            Ok((channel, session))
-        })
-        .await
-        .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?;
+            info!("SSH connection established");
 
-        match result {
-            Ok((channel, session)) => {
-                self.inner = Some(Arc::new(Mutex::new(channel)));
-                self.session = Some(session);
-                info!("SSH connection established and shell channel opened.");
-                Ok(())
+            // ---- I/O loop --------------------------------------------
+            let mut buf = [0u8; 1024];
+
+            loop {
+                // outgoing
+                while let Ok(pkt) = write_rx.try_recv() {
+                    if let Err(e) = channel.write_all(&pkt) {
+                        error!("SSH write error: {}", e); return;
+                    }
+                    channel.flush().ok();
+                }
+
+                // incoming
+                match channel.read(&mut buf) {
+                    Ok(0) => {} // nothing
+                    Ok(n) => {
+                        if read_tx.blocking_send(buf[..n].to_vec()).is_err() {
+                            return; // receiver gone
+                        }
+                    }
+                    
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                        /* WouldBlock */
+                    }
+                    Err(e) => { error!("SSH read error: {}", e); return; }
+                }
+
+                thread::sleep(Duration::from_millis(2));
             }
-            Err(e) => Err(e),
-        }
+        });
+        // --------------------------------------------------------------
+
+        self.write_tx = Some(write_tx);
+        self.read_rx  = Some(read_rx);
+        self.worker   = Some(worker);
+        Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
-        if let Some(inner) = self.inner.take() {
-            // Explicitly annotate the return type inside spawn_blocking
-            let join_result: Result<(), ConnectionError> = task::spawn_blocking(move || {
-                let mut channel = inner.blocking_lock();
-                channel
-                    .close()
-                    .map_err(|e| ConnectionError::Other(format!("Close channel error: {}", e)))?;
-                channel
-                    .wait_close()
-                    .map_err(|e| ConnectionError::Other(format!("Wait close error: {}", e)))?;
-                Ok(())
-            })
-            .await
-            .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?;
-            join_result?;
-            info!("SSH channel closed.");
+        self.write_tx = None;                    // tell worker to exit
+        if let Some(jh) = self.worker.take() {
+            let _ = jh.join();
         }
-        self.session = None;
         Ok(())
     }
 
     async fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
-        if let Some(inner) = &self.inner {
-            let data_vec = data.to_vec();
-            let inner_clone = inner.clone();
-
-            task::spawn_blocking(move || {
-                let mut channel = inner_clone.blocking_lock();
-                // Drain any pending incoming data.
-                let mut dummy = [0u8; 256];
-                loop {
-                    match channel.read(&mut dummy) {
-                        Ok(0) => break,
-                        Ok(n) => {
-                            debug!("Drained {} bytes from incoming flow", n);
-                        }
-                        Err(e) if e.to_string().contains("WouldBlock") => break,
-                        Err(e) => {
-                            debug!("Drain error (ignored): {:?}", e);
-                            break;
-                        }
-                    }
-                }
-                let bytes_written = channel
-                    .write(&data_vec)
-                    .map_err(|e| ConnectionError::Other(format!("Write error: {}", e)))?;
-                channel
-                    .flush()
-                    .map_err(|e| ConnectionError::Other(format!("Flush error: {}", e)))?;
-                Ok(bytes_written)
-            })
-            .await
-            .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?
-        } else {
-            error!("SSH connection not established!");
-            Err(ConnectionError::Other("Not connected".into()))
+        match &self.write_tx {
+            Some(tx) => {
+                tx.send(data.to_vec()).await.map_err(|_| {
+                    ConnectionError::Other("SSH write channel closed".into())
+                })?;
+                Ok(data.len())
+            }
+            None => Err(ConnectionError::Other("Not connected".into())),
         }
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
-        if let Some(inner) = &self.inner {
-            let len = buffer.len();
-            let inner_clone = inner.clone();
-            let result =
-                task::spawn_blocking(move || -> Result<(usize, Vec<u8>), ConnectionError> {
-                    // Allocate a temporary buffer with the same length as the caller's.
-                    let mut temp_buf = vec![0u8; len];
-                    let mut channel = inner_clone.blocking_lock();
-                    // Read into the temporary buffer.
-                    let n = channel
-                        .read(&mut temp_buf)
-                        .map_err(|e| ConnectionError::Other(format!("Read error: {}", e)))?;
-                    Ok((n, temp_buf))
-                })
-                .await
-                .map_err(|e| ConnectionError::Other(format!("Join error: {}", e)))?;
+        // serve leftovers first
+        if !self.leftovers.is_empty() {
+            let n = std::cmp::min(buffer.len(), self.leftovers.len());
+            for i in 0..n {
+                buffer[i] = self.leftovers.pop_front().unwrap();
+            }
+            return Ok(n);
+        }
 
-            let (n, temp_buf) = result?;
-            // Copy the bytes read into the provided buffer.
-            buffer[..n].copy_from_slice(&temp_buf[..n]);
-            Ok(n)
-        } else {
-            error!("SSH connection not established!");
-            Err(ConnectionError::Other("Not connected".into()))
+        match &mut self.read_rx {
+            Some(rx) => match rx.recv().await {
+                Some(mut chunk) => {
+                    let n = std::cmp::min(buffer.len(), chunk.len());
+                    buffer[..n].copy_from_slice(&chunk[..n]);
+                    if chunk.len() > n {
+                        self.leftovers.extend(chunk.split_off(n));
+                    }
+                    Ok(n)
+                }
+                None => Err(ConnectionError::Other("SSH connection closed".into())),
+            },
+            None => Err(ConnectionError::Other("Not connected".into())),
         }
     }
 }

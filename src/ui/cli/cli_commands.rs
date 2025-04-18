@@ -6,7 +6,6 @@ use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
 use clap::{Parser, Subcommand};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use log::info;
-use std::io::Write;
 use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
@@ -113,16 +112,9 @@ async fn run_cli_loop(
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-    // Callback for incoming bytes: print them to stdout.
-    // This prints the user input to the terminal as well as remotes (ssh, serial)
-    // typically echo back the input they get (remote echo).
-    let on_byte = |byte: u8| {
-        print!("{}", byte as char);
-        std::io::stdout().flush().ok();
-    };
 
     let handle: ConnectionHandle = connection_manager
-        .add_connection(id.clone(), conn, on_byte)
+        .add_connection(id.clone(), conn)
         .await?;
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;

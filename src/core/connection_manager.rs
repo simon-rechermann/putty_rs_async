@@ -59,9 +59,11 @@ impl ConnectionManager {
     /// - `id`: A unique identifier (e.g. port name or host)
     /// - `conn`: A *not-yet-connected* Connection
     /// - `on_byte`: A callback invoked on each received byte
-    /// This method takes ownership of a not-yet-connected Connection, connects it, and spawns an async I/O task
-    /// to handle read/write events using the provided byte callback. It then returns a `ConnectionHandle` that
-    /// can be used to control the connection.
+    ///   This method takes ownership of the connection, connects it,
+    ///   and spawns an async I/O task.
+    ///
+    ///   It then returns a `ConnectionHandle` that can be used to control
+    ///   the connection.
     pub async fn add_connection(
         &self,
         id: String,

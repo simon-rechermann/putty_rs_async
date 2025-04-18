@@ -26,6 +26,8 @@ cargo run --bin cli -- --help
 ```bash
 # For ssh2 crate
 sudo apt-get install libssl-dev
+# For tonic of you want to build the grpc server
+sudo apt install protobuf-compiler
 ```
 
 ## Test serial connection with putty or second putty-rs instance as other end of virtual serial device

@@ -5,10 +5,10 @@ pub mod putty {
 use putty::*;
 use putty::terminal_server::Terminal;
 
-use putty_core::{ConnectionManager, ConnectionHandle};
+use putty_core::ConnectionManager;
 use tokio::sync::mpsc;
 use tonic::{Request, Response, Status};
-use tracing::{info, error};
+use tracing::info;
 
 #[derive(Clone)]
 struct TerminalSvc {
@@ -80,12 +80,12 @@ impl Terminal for TerminalSvc {
     ) -> Result<Response<Self::ReadStreamStream>, Status> {
         let id = req.into_inner().id;
         // create a new channel dedicated to this stream
-        let (chunk_tx, chunk_rx) = mpsc::channel::<Result<ByteChunk, Status>>(32);
+        let (_chunk_tx, chunk_rx) = mpsc::channel::<Result<ByteChunk, Status>>(32);
         // attach a listener to the echo path
         let mgr = self.mgr.clone();
         tokio::spawn(async move {
             // naive polling loop; you can wire echo_tx later
-            let mut buf = vec![0u8; 1024];
+            let _buf = vec![0u8; 1024];
             loop {
                 match mgr.write_bytes(&id, &[]).await { _ => {} } // keep handle alive
                 // fake: real impl should hook into echo_tx

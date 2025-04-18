@@ -10,10 +10,6 @@ crate-type = ["rlib"]
 name = "cli"
 path = "src/bin/cli.rs"
 
-[[bin]]
-name = "gui"
-path = "src/bin/gui.rs"
-
 [dependencies]
 tokio = { version = "1.27", features = ["full"] }
 async-trait = "0.1"

@@ -167,8 +167,8 @@ impl Connection for SshConnection {
         // serve leftovers first
         if !self.leftovers.is_empty() {
             let n = std::cmp::min(buffer.len(), self.leftovers.len());
-            for i in 0..n {
-                buffer[i] = self.leftovers.pop_front().unwrap();
+            for (dst, src) in buffer.iter_mut().take(n).zip(self.leftovers.drain(..n)) {
+                *dst = src;
             }
             return Ok(n);
         }

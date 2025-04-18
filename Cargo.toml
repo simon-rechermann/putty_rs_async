@@ -2,6 +2,6 @@
 members = [
     "putty_core",
     "putty_cli",
-    # later: "putty_grpcd", "putty_proto"
+    "putty_grpc_server",
 ]
 resolver = "2"

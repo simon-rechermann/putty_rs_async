@@ -1,0 +1,18 @@
+[package]
+name    = "putty_grpc_server"
+version = "0.1.0"
+edition = "2021"
+build   = "build.rs"
+
+[dependencies]
+putty_core = { path = "../putty_core" }
+
+tokio       = { version = "1.27", features = ["full"] }
+tonic       = { version = "0.11", features = ["transport"] }
+prost       = "0.12"
+prost-types = "0.12"
+tracing     = "0.1"          # nicer logs; optional
+log         = "0.4"
+
+[build-dependencies]
+tonic-build = "0.11"

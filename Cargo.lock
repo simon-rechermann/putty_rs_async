@@ -587,11 +587,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "putty_rs"
+name = "putty_cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "crossterm",
+ "env_logger",
+ "log",
+ "putty_core",
+ "tokio",
+]
+
+[[package]]
+name = "putty_core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "clap",
  "crossterm",
  "env_logger",
  "log",

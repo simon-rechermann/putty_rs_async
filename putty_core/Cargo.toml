@@ -1,0 +1,16 @@
+[package]
+name = "putty_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+tokio = { version = "1.27", features = ["full"] }
+async-trait = "0.1"
+env_logger = "0.11"
+log = "0.4"
+crossterm = "0.28"
+tokio-serial = "5.4.5"
+ssh2 = "0.9"

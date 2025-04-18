@@ -1,8 +1,8 @@
-use crate::connections::errors::ConnectionError;
-use crate::connections::serial::SerialConnection;
-use crate::connections::ssh::SshConnection;
-use crate::connections::Connection;
-use crate::core::connection_manager::{ConnectionHandle, ConnectionManager};
+use putty_core::connections::errors::ConnectionError;
+use putty_core::connections::serial::SerialConnection;
+use putty_core::connections::ssh::SshConnection;
+use putty_core::connections::Connection;
+use putty_core::core::connection_manager::{ConnectionHandle, ConnectionManager};
 use clap::{Parser, Subcommand};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use log::info;

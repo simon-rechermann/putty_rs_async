@@ -102,20 +102,17 @@ async fn run_ssh_protocol(
 }
 
 /// Runs the CLI loop for a given connection.
-/// 
+///
 /// This function registers a connection by passing ownership of the Connection trait object
 /// (via `Box<dyn Connection + Send + Unpin>`)
 /// to the connection manager, enables raw terminal mode, and reads user input to write to the connection.
-/// It exits when the user types Ctrl+A followed by 'x', 
+/// It exits when the user types Ctrl+A followed by 'x',
 async fn run_cli_loop(
     connection_manager: &ConnectionManager,
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-
-    let handle: ConnectionHandle = connection_manager
-        .add_connection(id.clone(), conn)
-        .await?;
+    let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn).await?;
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
 

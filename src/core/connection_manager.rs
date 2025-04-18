@@ -2,10 +2,10 @@ use crate::connections::connection::Connection;
 use crate::connections::errors::ConnectionError;
 use log::{debug, error, info};
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::{sleep, Duration};
-use std::io::Write;
 
 enum IoEvent {
     Write(Vec<u8>),
@@ -16,7 +16,7 @@ enum IoEvent {
 /// This structure holds the asynchronous task's handle (`task_handle`),
 /// which represents the spawned task handling the connection's I/O operations.
 /// It reads from the connection and invokes the provided callback on each byte received.
-/// writes via it's mpsc sender (`ctrl_tx`) 
+/// writes via it's mpsc sender (`ctrl_tx`)
 struct ConnectionIOHandle {
     task_handle: tokio::task::JoinHandle<()>,
     ctrl_tx: mpsc::Sender<IoEvent>,
@@ -65,12 +65,12 @@ impl ConnectionManager {
     pub async fn add_connection(
         &self,
         id: String,
-        mut conn: Box<dyn Connection + Send + Unpin>
+        mut conn: Box<dyn Connection + Send + Unpin>,
     ) -> Result<ConnectionHandle, ConnectionError> {
         // 1) Connect the connection.
         conn.connect().await?;
 
-        // 2) Channel **I/O‑task → printer‑task** (echo path).  
+        // 2) Channel **I/O‑task → printer‑task** (echo path).
         //    The per‑connection I/O task pushes every received chunk into
         //    `echo_tx`; a tiny printer task (`echo_rx`) drains the channel and
         //    writes the data to the user’s terminal (stdout), flushing so each
@@ -79,23 +79,23 @@ impl ConnectionManager {
         tokio::spawn(async move {
             while let Some(chunk) = echo_rx.recv().await {
                 std::io::stdout().write_all(&chunk).ok();
-                std::io::stdout().flush().ok();   
+                std::io::stdout().flush().ok();
             }
         });
 
-        // 3) Channel **public API → I/O task** (control path).  
+        // 3) Channel **public API → I/O task** (control path).
         //    Every `ConnectionHandle::write_bytes` call sends `IoEvent::Write`
-        //    through `ctrl_tx`; `stop_connection` sends `IoEvent::Stop`.  
+        //    through `ctrl_tx`; `stop_connection` sends `IoEvent::Stop`.
         //    The receiving end (`ctrl_rx`) lives inside the I/O task below,
         //    so external threads can drive the connection without touching the
         //    transport directly or blocking on it.
         let (ctrl_tx, mut ctrl_rx) = mpsc::channel::<IoEvent>(32);
         let id_clone = id.clone();
 
-        // 4) Per‑connection **I/O task**.  
-        //    Concurrently:  
-        //      • forwards `IoEvent::Write` to the transport  
-        //      • detects `IoEvent::Stop` and performs clean shutdown  
+        // 4) Per‑connection **I/O task**.
+        //    Concurrently:
+        //      • forwards `IoEvent::Write` to the transport
+        //      • detects `IoEvent::Stop` and performs clean shutdown
         //      • reads incoming bytes from the transport and relays them to
         //        the printer task via `echo_tx`
         //    This task owns the transport object, keeping all blocking I/O in
@@ -104,7 +104,7 @@ impl ConnectionManager {
             info!("Async I/O task started for connection '{}'.", id_clone);
             let mut buf = [0u8; 256];
             loop {
-                // This impicitly awaits concrrently for 
+                // This impicitly awaits concrrently for
                 // the ctrl_rx.recv() and conn.read() futures
                 tokio::select! {
                     Some(event) = ctrl_rx.recv() => {

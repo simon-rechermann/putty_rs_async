@@ -20,10 +20,10 @@ pub struct SshConnection {
     password: String,
 
     write_tx: Option<mpsc::Sender<Vec<u8>>>,
-    read_rx:  Option<mpsc::Receiver<Vec<u8>>>,
+    read_rx: Option<mpsc::Receiver<Vec<u8>>>,
 
     leftovers: VecDeque<u8>,
-    worker:    Option<thread::JoinHandle<()>>,
+    worker: Option<thread::JoinHandle<()>>,
 }
 
 impl SshConnection {
@@ -44,12 +44,12 @@ impl SshConnection {
 #[async_trait]
 impl Connection for SshConnection {
     async fn connect(&mut self) -> Result<(), ConnectionError> {
-        let addr      = format!("{}:{}", self.host, self.port);
-        let username  = self.username.clone();
-        let password  = self.password.clone();
+        let addr = format!("{}:{}", self.host, self.port);
+        let username = self.username.clone();
+        let password = self.password.clone();
 
         let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
-        let (read_tx,  read_rx)      = mpsc::channel::<Vec<u8>>(32);
+        let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
 
         info!("Connecting to SSH server at {}", addr);
 
@@ -58,7 +58,10 @@ impl Connection for SshConnection {
             // ---- establish session & channel --------------------------
             let tcp = match TcpStream::connect(&addr) {
                 Ok(t) => t,
-                Err(e) => { error!("TCP connect error: {}", e); return; }
+                Err(e) => {
+                    error!("TCP connect error: {}", e);
+                    return;
+                }
             };
 
             tcp.set_read_timeout(Some(Duration::from_millis(500))).ok();
@@ -66,24 +69,35 @@ impl Connection for SshConnection {
 
             let mut session = match Session::new() {
                 Ok(s) => s,
-                Err(e) => { error!("Failed to create SSH session: {}", e); return; }
+                Err(e) => {
+                    error!("Failed to create SSH session: {}", e);
+                    return;
+                }
             };
             session.set_tcp_stream(tcp);
             if let Err(e) = session.handshake() {
-                error!("Handshake error: {}", e); return;
+                error!("Handshake error: {}", e);
+                return;
             }
             if let Err(e) = session.userauth_password(&username, &password) {
-                error!("Authentication error: {}", e); return;
+                error!("Authentication error: {}", e);
+                return;
             }
             if !session.authenticated() {
-                error!("SSH authentication failed"); return;
+                error!("SSH authentication failed");
+                return;
             }
 
             let mut channel = match session.channel_session() {
                 Ok(c) => c,
-                Err(e) => { error!("Channel error: {}", e); return; }
+                Err(e) => {
+                    error!("Channel error: {}", e);
+                    return;
+                }
             };
-            channel.request_pty("xterm", None, Some((80, 24, 0, 0))).ok();
+            channel
+                .request_pty("xterm", None, Some((80, 24, 0, 0)))
+                .ok();
             channel.shell().ok();
             session.set_blocking(false);
 
@@ -96,7 +110,8 @@ impl Connection for SshConnection {
                 // outgoing
                 while let Ok(pkt) = write_rx.try_recv() {
                     if let Err(e) = channel.write_all(&pkt) {
-                        error!("SSH write error: {}", e); return;
+                        error!("SSH write error: {}", e);
+                        return;
                     }
                     channel.flush().ok();
                 }
@@ -109,11 +124,12 @@ impl Connection for SshConnection {
                             return; // receiver gone
                         }
                     }
-                    
-                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
-                        /* WouldBlock */
+
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => { /* WouldBlock */ }
+                    Err(e) => {
+                        error!("SSH read error: {}", e);
+                        return;
                     }
-                    Err(e) => { error!("SSH read error: {}", e); return; }
                 }
 
                 thread::sleep(Duration::from_millis(2));
@@ -122,13 +138,13 @@ impl Connection for SshConnection {
         // --------------------------------------------------------------
 
         self.write_tx = Some(write_tx);
-        self.read_rx  = Some(read_rx);
-        self.worker   = Some(worker);
+        self.read_rx = Some(read_rx);
+        self.worker = Some(worker);
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
-        self.write_tx = None;                    // tell worker to exit
+        self.write_tx = None; // tell worker to exit
         if let Some(jh) = self.worker.take() {
             let _ = jh.join();
         }
@@ -138,9 +154,9 @@ impl Connection for SshConnection {
     async fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
         match &self.write_tx {
             Some(tx) => {
-                tx.send(data.to_vec()).await.map_err(|_| {
-                    ConnectionError::Other("SSH write channel closed".into())
-                })?;
+                tx.send(data.to_vec())
+                    .await
+                    .map_err(|_| ConnectionError::Other("SSH write channel closed".into()))?;
                 Ok(data.len())
             }
             None => Err(ConnectionError::Other("Not connected".into())),

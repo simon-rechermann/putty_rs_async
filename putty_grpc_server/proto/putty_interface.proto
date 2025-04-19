@@ -1,11 +1,11 @@
 syntax = "proto3";
-package putty;
+package putty_interface;
 
-service Terminal {
-  rpc CreateConnection (CreateRequest) returns (ConnectionId);
+service RemoteConnection {
+  rpc CreateRemoteConnection (CreateRequest) returns (ConnectionId);
   rpc Write            (WriteRequest)  returns (Empty);
   rpc Stop             (ConnectionId)  returns (Empty);
-  rpc ReadStream       (ConnectionId)  returns (stream ByteChunk);
+  rpc Read             (ConnectionId)  returns (stream ByteChunk);
 }
 
 message CreateRequest {

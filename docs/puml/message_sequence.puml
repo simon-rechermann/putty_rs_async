@@ -1,14 +1,12 @@
 @startuml Byte Flow
 skinparam participantPadding 15
-actor User            as U
+actor CLI            as U
 participant "CLI task\n(run_cli_loop)"          as CLI
 participant "ConnectionManager\n(write_bytes)" as CM
-participant "ctrl_tx\n(Sender)"                as CtrlTx
+participant "write_stop_tx\n(Sender)"          as CtrlTx
 participant "I/O task\n(per‑connection)"       as IO
 participant "Transport\n(Serial / SSH)"        as TR
-participant "Remote peer"                      as REM
-participant "echo_tx\n(Sender)"                as EchoTx
-participant "Printer task\n(stdout)"           as PT
+participant "Remote Connection"                      as REM
 
 == Send keystroke ==
 U  -> CLI   : press 'a'
@@ -16,14 +14,13 @@ CLI -> CM   : write_bytes(id, [97])
 CM  -> CtrlTx : IoEvent::Write([97])
 CtrlTx --> IO : (recv)
 IO  -> TR   : write([97])
+TR  -> REM   : write([97])
 
 == Remote echoes ==
 REM --> TR  : 'a'
-TR --> IO   : read() -> [97]
-IO  -> EchoTx : send([97])
-EchoTx --> PT : (recv)
-PT  -> PT   : write_all + flush
-PT  --> U   : displays 'a'
+TR --> IO   : conn.read() -> [97]
+IO  -> U : broadcast_tx.send([97])
+U  -> U   : write_all + flush
 
 == Stop request (Ctrl+A x) ==
 U  -> CLI   : Ctrl+A 'x'

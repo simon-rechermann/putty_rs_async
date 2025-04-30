@@ -7,6 +7,7 @@ use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 use putty_core::core::connection_manager::{ConnectionHandle, ConnectionManager};
 use tokio::io::{self, AsyncReadExt};
+use std::io::{stdout, Write};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
@@ -112,7 +113,19 @@ async fn run_cli_loop(
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-    let handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn).await?;
+    let connection_handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn).await?;
+
+    // Subscribe to messages from the new connection
+    let mut connection_receiver = connection_manager.subscribe(&id).await.unwrap();
+
+    // -> echo to the user’s terminal
+    tokio::spawn(async move {
+        while let Ok(chunk) = connection_receiver.recv().await {
+            let _ = stdout().write_all(&chunk);
+            let _ = stdout().flush();
+        }
+    });
+
     info!("Enable raw mode. Press Ctrl+A then 'x' to exit the program.");
     set_raw_mode()?;
 
@@ -136,12 +149,12 @@ async fn run_cli_loop(
             last_was_ctrl_a = false;
         }
         if ch == b'\r' {
-            let _ = handle.write_bytes(b"\r").await;
+            let _ = connection_handle.write_bytes(b"\r").await;
         } else {
-            let _ = handle.write_bytes(&[ch]).await;
+            let _ = connection_handle.write_bytes(&[ch]).await;
         }
     }
-    let _ = handle.stop().await;
+    let _ = connection_handle.stop().await;
     info!("Terminal mode restored.");
     Ok(())
 }

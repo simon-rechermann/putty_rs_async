@@ -155,7 +155,7 @@ async fn run_cli_loop(
             let _ = connection_handle.write_bytes(&[ch]).await;
         }
     }
-    let _ = connection_handle.stop().await;
+    let _ = connection_handle.stop_connection().await;
     info!("Terminal mode restored.");
     Ok(())
 }

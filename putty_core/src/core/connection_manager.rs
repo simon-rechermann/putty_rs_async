@@ -184,7 +184,7 @@ impl ConnectionHandle {
     }
 
     /// Stop this connection.
-    pub async fn stop(self) -> Result<(), ConnectionError> {
+    pub async fn stop_connection(self) -> Result<(), ConnectionError> {
         self.manager.stop_connection(&self.id).await
     }
 }

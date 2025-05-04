@@ -35,7 +35,7 @@ impl RemoteConnection for ConnectionService {
             }
             create_request::Kind::Ssh(s) => {
                 let conn = putty_core::connections::ssh::SshConnection::new(
-                    s.host, s.port as u16, s.user, s.pass,
+                    s.host, s.port as u16, s.user, s.password,
                 );
                 self.manager.add_connection(id.clone(), Box::new(conn)).await
             }

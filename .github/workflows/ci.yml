@@ -10,76 +10,92 @@ on:
 
 jobs:
   build:
-    name: Build
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.os }})
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      # Linux‑specific native deps
+      - name: Install Linux deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev protobuf-compiler
+        run: sudo apt-get update -y &&
+             sudo apt-get install -y pkg-config libudev-dev
+
+      # Cross‑platform protoc
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '25.3'          # pick any released version
 
       - name: Build
         run: cargo build --verbose
 
   stylecheck:
-    name: Style Check
     runs-on: ubuntu-latest
+    name: Rustfmt
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev
+      - name: Install Linux deps
+        run: sudo apt-get update -y &&
+             sudo apt-get install -y pkg-config libudev-dev
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          components: rustfmt
 
       - name: Run rustfmt
         run: cargo fmt --all -- --check
 
+# ────────────────────────────────────── clippy ──────────────────────────────
   clippy:
-    name: Lint with Clippy
     runs-on: ubuntu-latest
+    name: Clippy
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev
+      - name: Install Linux deps
+        run: sudo apt-get update -y &&
+             sudo apt-get install -y pkg-config libudev-dev
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '25.3'
+
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          components: clippy
 
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
-    name: Run Tests
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    name: Tests (${{ matrix.os }})
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Linux deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev
+        run: sudo apt-get update -y &&
+             sudo apt-get install -y pkg-config libudev-dev
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '25.3'
+
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 

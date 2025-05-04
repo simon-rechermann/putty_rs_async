@@ -3,7 +3,7 @@ use crate::connections::errors::ConnectionError;
 use log::{debug, error, info};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex, broadcast};
+use tokio::sync::{broadcast, mpsc, Mutex};
 
 enum IoEvent {
     Write(Vec<u8>),
@@ -66,7 +66,6 @@ impl ConnectionManager {
         id: String,
         mut conn: Box<dyn Connection + Send + Unpin>,
     ) -> Result<ConnectionHandle, ConnectionError> {
-
         conn.connect().await?;
 
         // Broadcast messages from the connection to all listeners(UIs)
@@ -138,10 +137,7 @@ impl ConnectionManager {
     }
 
     /// Subscribe to the byte stream of a connection.
-    pub async fn subscribe(
-        &self,
-        id: &str,
-    ) -> Option<broadcast::Receiver<Vec<u8>>> {
+    pub async fn subscribe(&self, id: &str) -> Option<broadcast::Receiver<Vec<u8>>> {
         let map = self.inner.lock().await;
         map.get(id).map(|h| h.broadcast_tx.subscribe())
     }

@@ -6,8 +6,8 @@ use putty_core::connections::serial::SerialConnection;
 use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 use putty_core::core::connection_manager::{ConnectionHandle, ConnectionManager};
-use tokio::io::{self, AsyncReadExt};
 use std::io::{stdout, Write};
+use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
@@ -113,7 +113,8 @@ async fn run_cli_loop(
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-    let connection_handle: ConnectionHandle = connection_manager.add_connection(id.clone(), conn).await?;
+    let connection_handle: ConnectionHandle =
+        connection_manager.add_connection(id.clone(), conn).await?;
 
     // Subscribe to messages from the new connection
     let mut connection_receiver = connection_manager.subscribe(&id).await.unwrap();

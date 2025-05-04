@@ -28,48 +28,59 @@ impl RemoteConnection for ConnectionService {
         req: Request<CreateRequest>,
     ) -> Result<Response<ConnectionId>, Status> {
         let id = uuid::Uuid::new_v4().to_string();
-        match req.into_inner().kind.ok_or(Status::invalid_argument("kind"))? {
+        match req
+            .into_inner()
+            .kind
+            .ok_or(Status::invalid_argument("kind"))?
+        {
             create_request::Kind::Serial(s) => {
                 let conn = putty_core::connections::serial::SerialConnection::new(s.port, s.baud);
-                self.manager.add_connection(id.clone(), Box::new(conn)).await
+                self.manager
+                    .add_connection(id.clone(), Box::new(conn))
+                    .await
             }
             create_request::Kind::Ssh(s) => {
                 let conn = putty_core::connections::ssh::SshConnection::new(
-                    s.host, s.port as u16, s.user, s.password,
+                    s.host,
+                    s.port as u16,
+                    s.user,
+                    s.password,
                 );
-                self.manager.add_connection(id.clone(), Box::new(conn)).await
+                self.manager
+                    .add_connection(id.clone(), Box::new(conn))
+                    .await
             }
-        }.map_err(|e| Status::internal(e.to_string()))?;
+        }
+        .map_err(|e| Status::internal(e.to_string()))?;
 
-        Ok(Response::new(ConnectionId{ id }))
+        Ok(Response::new(ConnectionId { id }))
     }
 
-    async fn write(&self, req: Request<WriteRequest>)
-        -> Result<Response<Empty>, Status>
-    {
+    async fn write(&self, req: Request<WriteRequest>) -> Result<Response<Empty>, Status> {
         let m = req.into_inner();
-        self.manager.write_bytes(&m.id, &m.data).await
+        self.manager
+            .write_bytes(&m.id, &m.data)
+            .await
             .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(Empty{}))
+        Ok(Response::new(Empty {}))
     }
 
-    async fn stop(&self, req: Request<ConnectionId>)
-        -> Result<Response<Empty>, Status>
-    {
-        self.manager.stop_connection(&req.into_inner().id).await
+    async fn stop(&self, req: Request<ConnectionId>) -> Result<Response<Empty>, Status> {
+        self.manager
+            .stop_connection(&req.into_inner().id)
+            .await
             .map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(Empty{}))
+        Ok(Response::new(Empty {}))
     }
 
-    type ReadStream =
-        tokio_stream::wrappers::ReceiverStream<Result<ByteChunk, Status>>;
+    type ReadStream = tokio_stream::wrappers::ReceiverStream<Result<ByteChunk, Status>>;
 
-    async fn read(
-        &self,
-        req: Request<ConnectionId>,
-    ) -> Result<Response<Self::ReadStream>, Status> {
+    async fn read(&self, req: Request<ConnectionId>) -> Result<Response<Self::ReadStream>, Status> {
         let id = req.into_inner().id;
-        let mut rx = self.manager.subscribe(&id).await
+        let mut rx = self
+            .manager
+            .subscribe(&id)
+            .await
             .ok_or(Status::not_found("no such connection"))?;
 
         let (tx, rx_stream) = mpsc::channel::<Result<ByteChunk, Status>>(64);
@@ -77,15 +88,15 @@ impl RemoteConnection for ConnectionService {
         // forward every chunk from ConnectionManager → gRPC stream
         tokio::spawn(async move {
             while let Ok(chunk) = rx.recv().await {
-                if tx.send(Ok(ByteChunk{ data: chunk })).await.is_err() {
-                    break;          // client hung up
+                if tx.send(Ok(ByteChunk { data: chunk })).await.is_err() {
+                    break; // client hung up
                 }
             }
         });
 
-        Ok(Response::new(
-            tokio_stream::wrappers::ReceiverStream::new(rx_stream),
-        ))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            rx_stream,
+        )))
     }
 }
 
@@ -94,7 +105,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
     let manager = ConnectionManager::new();
-    let server = remote_connection_server::RemoteConnectionServer::new(ConnectionService::new(manager));
+    let server =
+        remote_connection_server::RemoteConnectionServer::new(ConnectionService::new(manager));
 
     info!("gRPC server listening on 0.0.0.0:50051");
     tonic::transport::Server::builder()

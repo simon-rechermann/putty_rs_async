@@ -5,13 +5,8 @@ The complete documentation is available in docs/index.adoc
 
 ## Usage
 
-There is is command line interface (cli) and a graphical user interface (gui) available.
-
-The gui does not expect any additional parameters.
-
-```bash
-cargo run --bin gui
-```
+There is is command line interface (cli) and a gRPC server to support language independet gRPC client
+that implement the proto interface provides by the server.
 
 The cli expects additional parameters. To get information about it you can run the following command.
 
@@ -19,13 +14,15 @@ The cli expects additional parameters. To get information about it you can run t
 cargo run --bin cli -- --help
 ```
 
-## Lib dependencies
+## Dependencies
 
 ### Ubuntu
 
 ```bash
 # For ssh2 crate
 sudo apt-get install libssl-dev
+# For tonic of you want to build the gRPC server
+sudo apt install protobuf-compiler
 ```
 
 ## Test serial connection with putty or second putty-rs instance as other end of virtual serial device
@@ -43,4 +40,38 @@ To be able to connect to a ssh server you need to specify some parameters.
 
 ```bash
 cargo run --bin cli -- ssh --help
+```
+
+## Test the gRPC server
+
+To test the gRPC server you can generate the python gRPC stubs and use the python_client,
+which utilizes the proto interface to provide the same CLI like the rust cli.
+
+First we create the python client stubs:
+
+```bash
+cd python_grpc_client
+# Created and activate a venv to not make any global pip installations
+python3 -m venv .venv
+source .venv/bin/activate
+# Install the required dependencies with pip
+pip install grpcio grpcio-tools protoletariat
+
+mkdir generated
+# Generate stubs
+python -m grpc_tools.protoc -I ../putty_grpc_server/proto --python_out=generated --grpc_python_out=generated putty_interface.proto
+# Modify stubs to using protoletariat to make the imports relative see: https://github.com/protocolbuffers/protobuf/issues/1491
+protol --create-package --in-place --python-out generated protoc --proto-path=../putty_grpc_server/proto putty_interface.proto
+
+```
+
+Now we can start the server in one terminal and connect with the python client it.
+The python client provides the same cli as the rust cli.
+
+```bash
+# Run the server which listens for clients to connect
+cargo run --bin putty_grpc_server
+# In a new termial we can connect to the server with the python client
+cd python_grpc_client
+python grpc_cli_client.py serial --port /dev/pts/3
 ```

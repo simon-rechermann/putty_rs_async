@@ -1,35 +1,40 @@
-@startuml Byte Flow
+@startuml Byte_Flow
+title Byte flow in if a CLI User presses a key and Ctrl+A x
+
 skinparam participantPadding 15
-actor User            as U
+actor CLI            as U
 participant "CLI task\n(run_cli_loop)"          as CLI
 participant "ConnectionManager\n(write_bytes)" as CM
-participant "ctrl_tx\n(Sender)"                as CtrlTx
 participant "I/O task\n(per‑connection)"       as IO
 participant "Transport\n(Serial / SSH)"        as TR
-participant "Remote peer"                      as REM
-participant "echo_tx\n(Sender)"                as EchoTx
-participant "Printer task\n(stdout)"           as PT
+participant "Remote Connection"                      as REM
 
 == Send keystroke ==
 U  -> CLI   : press 'a'
 CLI -> CM   : write_bytes(id, [97])
-CM  -> CtrlTx : IoEvent::Write([97])
-CtrlTx --> IO : (recv)
-IO  -> TR   : write([97])
+CM  -> IO : IoEvent::Write([97])
+IO --> IO : (recv)
+IO  -> TR   : conn.write([97])
+TR  -> REM   : write([97])
 
 == Remote echoes ==
-REM --> TR  : 'a'
-TR --> IO   : read() -> [97]
-IO  -> EchoTx : send([97])
-EchoTx --> PT : (recv)
-PT  -> PT   : write_all + flush
-PT  --> U   : displays 'a'
+REM --> TR  : read([97])
+TR --> IO   : conn.read() -> [97]
+IO  -> U : broadcast_tx.send([97])
+U  -> U   : write_all + flush
 
 == Stop request (Ctrl+A x) ==
 U  -> CLI   : Ctrl+A 'x'
 CLI -> CM   : stop_connection(id)
-CM  -> CtrlTx : IoEvent::Stop
-CtrlTx --> IO : (recv)
+CM  -> IO : IoEvent::Stop
+IO --> IO : (recv)
 IO  -> TR   : disconnect()
 IO  --> CM  : task ends
+
+legend bottom
+  **Scenario**
+  • User keystrokes travel CLI → ConnectionManager → I/O task → Transport → Remote Connection
+  • Remote Connection echoes bytes back → I/O task broadcasts to all subscribers like CLI 
+  • Ctrl + A, x triggers stop_connection and a clean shut-down sequence.
+endlegend
 @enduml

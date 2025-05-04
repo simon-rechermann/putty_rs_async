@@ -1,2 +1,5 @@
 /target
 TODO
+.venv
+__pycache__
+generated

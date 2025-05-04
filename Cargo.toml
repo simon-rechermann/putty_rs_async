@@ -1,25 +1,7 @@
-[package]
-name = "putty_rs"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-crate-type = ["rlib"]
-
-[[bin]]
-name = "cli"
-path = "src/bin/cli.rs"
-
-[[bin]]
-name = "gui"
-path = "src/bin/gui.rs"
-
-[dependencies]
-tokio = { version = "1.27", features = ["full"] }
-async-trait = "0.1"
-clap = { version = "4.5", features = ["derive"] }
-env_logger = "0.11"
-log = "0.4"
-crossterm = "0.28"
-tokio-serial = "5.4.5"
-ssh2 = "0.9"
+[workspace]
+members = [
+    "putty_core",
+    "putty_cli",
+    "putty_grpc_server",
+]
+resolver = "2"

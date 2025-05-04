@@ -17,7 +17,7 @@ struct ConnectionService {
 
 impl ConnectionService {
     fn new(manager: ConnectionManager) -> Self {
-        Self { manager: manager }
+        Self { manager }
     }
 }
 

@@ -12,9 +12,9 @@ enum IoEvent {
 /// Represents the I/O task handle for a connection.
 ///
 /// 1. ConnectionIOHandle holds the IO task that reads from the connection
-/// and broadcasts the read messages(via broadcast_tx) to all its listeners (e.g. the cli).
+///     and broadcasts the read messages(via broadcast_tx) to all its listeners (e.g. the cli).
 /// 2. It exposes write_stop_tx to the public API (write_bytes, stop_connection)
-/// allowing UIs to send messages to the connection.
+///     allowing UIs to send messages to the connection.
 struct ConnectionIOHandle {
     io_task_handle: tokio::task::JoinHandle<()>,
     write_stop_tx: mpsc::Sender<IoEvent>,

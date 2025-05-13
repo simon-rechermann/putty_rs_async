@@ -13,7 +13,7 @@ async fn roundtrip_and_write_path() {
     //   Logs will appear only when you run with `-- --nocapture`
     //   or when the test fails.
     let _ = env_logger::Builder::from_default_env()
-        .filter_level(LevelFilter::Debug)  
+        .filter_level(LevelFilter::Debug)
         .is_test(true)
         .try_init();
 

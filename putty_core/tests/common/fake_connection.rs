@@ -34,12 +34,7 @@ impl FakeConnection {
     ///    `ConnectionManager::add_connection`.
     /// 2. `test_to_fake_tx` – send bytes **into** the fake (simulated device input).
     /// 3. `fake_to_test_rx` – receive bytes the manager tried to write (optional).
-    pub fn new(
-    ) -> (
-        Self,
-        mpsc::Sender<Vec<u8>>,
-        mpsc::Receiver<Vec<u8>>,
-    ) {
+    pub fn new() -> (Self, mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
         let (test_to_fake_tx, test_to_fake_rx) = mpsc::channel(32);
         let (fake_to_test_tx, fake_to_test_rx) = mpsc::channel(32);
 

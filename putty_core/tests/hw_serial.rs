@@ -4,10 +4,7 @@
 #![cfg(feature = "hw-tests")]
 #![cfg(unix)]
 
-use putty_core::{
-    connections::serial::serial_connection::SerialConnection,
-    ConnectionManager,
-};
+use putty_core::{connections::serial::serial_connection::SerialConnection, ConnectionManager};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
@@ -15,9 +12,9 @@ use tokio::{
     time::{timeout, Duration},
 };
 
+use log::LevelFilter;
 use std::path::PathBuf;
 use tokio_serial::SerialPortBuilderExt;
-use log::LevelFilter;
 
 /// Spawn `socat -d -d pty,raw,echo=0 pty,raw,echo=0` and capture the two PTY
 /// device paths it prints.  Returns `(left, right, child_handle)`.

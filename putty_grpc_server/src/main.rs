@@ -6,6 +6,7 @@ use putty_interface::remote_connection_server::RemoteConnection;
 use putty_interface::*;
 
 use putty_core::ConnectionManager;
+use putty_core::connections::connection::Connection;
 use tokio::sync::mpsc;
 use tonic::{Request, Response, Status};
 use tracing::info;
@@ -28,30 +29,30 @@ impl RemoteConnection for ConnectionService {
         req: Request<CreateRequest>,
     ) -> Result<Response<ConnectionId>, Status> {
         let id = uuid::Uuid::new_v4().to_string();
-        match req
-            .into_inner()
-            .kind
-            .ok_or(Status::invalid_argument("kind"))?
+        // Unwrap the request and choose the concrete connection
+        let conn: Box<dyn Connection + Send + Unpin + 'static> =
+            match req
+                .into_inner()
+                .kind
+                .ok_or_else(|| Status::invalid_argument("kind"))?
         {
-            create_request::Kind::Serial(s) => {
-                let conn = putty_core::connections::serial::SerialConnection::new(s.port, s.baud);
-                self.manager
-                    .add_connection(id.clone(), Box::new(conn))
-                    .await
-            }
-            create_request::Kind::Ssh(s) => {
-                let conn = putty_core::connections::ssh::SshConnection::new(
+            create_request::Kind::Serial(s) => Box::new(
+                putty_core::connections::serial::SerialConnection::new(s.port, s.baud),
+            ),
+            create_request::Kind::Ssh(s) => Box::new(
+                putty_core::connections::ssh::SshConnection::new(
                     s.host,
                     s.port as u16,
                     s.user,
                     s.password,
-                );
-                self.manager
-                    .add_connection(id.clone(), Box::new(conn))
-                    .await
-            }
-        }
-        .map_err(|e| Status::internal(e.to_string()))?;
+                ),
+            ),
+        };
+
+        self.manager
+            .add_connection(id.clone(), conn)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(ConnectionId { id }))
     }

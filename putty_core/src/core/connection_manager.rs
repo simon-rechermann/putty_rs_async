@@ -21,12 +21,6 @@ struct ConnectionIOHandle {
     broadcast_tx: broadcast::Sender<Vec<u8>>,
 }
 
-#[derive(Clone)]
-pub struct ConnectionHandle {
-    manager: ConnectionManager,
-    id: String,
-}
-
 /// Manages multiple connections concurrently.
 ///
 /// The internal state is a HashMap that maps unique connection identifiers to their
@@ -65,7 +59,7 @@ impl ConnectionManager {
         &self,
         id: String,
         mut conn: Box<dyn Connection + Send + Unpin>,
-    ) -> Result<ConnectionHandle, ConnectionError> {
+    ) -> Result<(), ConnectionError> {
         conn.connect().await?;
 
         // Broadcast messages from the connection to all listeners(UIs)
@@ -130,10 +124,7 @@ impl ConnectionManager {
             map.insert(id.clone(), handle);
         }
 
-        Ok(ConnectionHandle {
-            manager: self.clone(),
-            id,
-        })
+        Ok(())
     }
 
     /// Subscribe to the byte stream of a connection.
@@ -174,17 +165,5 @@ impl ConnectionManager {
                 id
             )))
         }
-    }
-}
-
-impl ConnectionHandle {
-    /// Write bytes using this handle.
-    pub async fn write_bytes(&self, data: &[u8]) -> Result<usize, ConnectionError> {
-        self.manager.write_bytes(&self.id, data).await
-    }
-
-    /// Stop this connection.
-    pub async fn stop_connection(self) -> Result<(), ConnectionError> {
-        self.manager.stop_connection(&self.id).await
     }
 }

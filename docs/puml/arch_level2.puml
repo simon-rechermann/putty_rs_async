@@ -7,16 +7,36 @@ skinparam packageBackgroundColor White
 
 package UI {
     class CLI
-    class GUI
-    GUI -> CLI
+}
+
+package gRPC_server {
+    class RemoteConnection {
+        + CreateRemoteConnection
+        + Read
+        + Write
+        + Stop
+    }
+}
+
+package gRPC_client {
+    class RemoteConnectionStub {
+        + CreateRemoteConnection
+        + Read
+        + Write
+        + Stop
+    }
 }
 
 package Core {
-    class ConnectionHandle
-    class ConnectionIOThread
+    class ConnectionIOHandle
     class ConnectionManager
-    ConnectionHandle --> ConnectionManager
-    ConnectionManager "1" *-- "*" ConnectionIOThread
+     {
+        + add_connection
+        + subscribe
+        + write_bytes
+        + stop_connection
+    }
+    ConnectionManager "1" *-- "*" ConnectionIOHandle
 }
 
 package Connections {
@@ -32,7 +52,10 @@ package Connections {
     Connection <|-- SshConnection
 }
 
-UI --> ConnectionHandle
-ConnectionIOThread --> Connection
+CLI --> ConnectionManager
+gRPC_client --> gRPC_server
+gRPC_server --> ConnectionManager
+ConnectionIOHandle --> Connection
+ConnectionManager --> Connection
 
 @enduml

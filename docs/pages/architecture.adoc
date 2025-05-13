@@ -19,14 +19,14 @@ include::{pumldir}/arch_level1.puml[]
 
 *Level2*:
 
-[plantuml, componentA, png]
+[plantuml, componentC, png]
 ....
 include::{pumldir}/arch_level2.puml[]
 ....
 
 === Runtime View
 
-[plantuml, componentA, png]
+[plantuml, message_sequence, png]
 ....
 include::{pumldir}/message_sequence.puml[]
 ....

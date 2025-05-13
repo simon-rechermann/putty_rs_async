@@ -5,7 +5,7 @@ use putty_core::connections::errors::ConnectionError;
 use putty_core::connections::serial::SerialConnection;
 use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
-use putty_core::core::connection_manager::{ConnectionHandle, ConnectionManager};
+use putty_core::core::connection_manager::ConnectionManager;
 use std::io::{stdout, Write};
 use tokio::io::{self, AsyncReadExt};
 
@@ -113,8 +113,7 @@ async fn run_cli_loop(
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-    let connection_handle: ConnectionHandle =
-        connection_manager.add_connection(id.clone(), conn).await?;
+    connection_manager.add_connection(id.clone(), conn).await?;
 
     // Subscribe to messages from the new connection
     let mut connection_receiver = connection_manager.subscribe(&id).await.unwrap();
@@ -150,12 +149,12 @@ async fn run_cli_loop(
             last_was_ctrl_a = false;
         }
         if ch == b'\r' {
-            let _ = connection_handle.write_bytes(b"\r").await;
+            let _ = connection_manager.write_bytes(&id, b"\r").await;
         } else {
-            let _ = connection_handle.write_bytes(&[ch]).await;
+            let _ = connection_manager.write_bytes(&id, &[ch]).await;
         }
     }
-    let _ = connection_handle.stop().await;
+    let _ = connection_manager.stop_connection(&id).await;
     info!("Terminal mode restored.");
     Ok(())
 }

@@ -75,3 +75,11 @@ cargo run --bin putty_grpc_server
 cd python_grpc_client
 python grpc_cli_client.py serial --port /dev/pts/3
 ```
+
+## Run integration tests
+
+Run ssh hw-test and enable logging output
+
+```bash
+cargo test -p putty_core --test hw_ssh --features hw-tests -- --nocapture
+```

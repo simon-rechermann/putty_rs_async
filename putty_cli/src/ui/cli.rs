@@ -113,7 +113,6 @@ async fn run_cli_loop(
     id: String,
     conn: Box<dyn Connection + Send + Unpin>,
 ) -> Result<(), ConnectionError> {
-
     connection_manager.add_connection(id.clone(), conn).await?;
 
     // Subscribe to messages from the new connection

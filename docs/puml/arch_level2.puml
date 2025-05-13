@@ -28,7 +28,6 @@ package gRPC_client {
 }
 
 package Core {
-    class ConnectionHandle
     class ConnectionIOHandle
     class ConnectionManager
      {
@@ -37,7 +36,6 @@ package Core {
         + write_bytes
         + stop_connection
     }
-    ConnectionHandle --> ConnectionManager
     ConnectionManager "1" *-- "*" ConnectionIOHandle
 }
 
@@ -54,7 +52,7 @@ package Connections {
     Connection <|-- SshConnection
 }
 
-CLI --> ConnectionHandle
+CLI --> ConnectionManager
 gRPC_client --> gRPC_server
 gRPC_server --> ConnectionManager
 ConnectionIOHandle --> Connection

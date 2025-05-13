@@ -1,6 +1,8 @@
 @startuml ArchLevel1
 ' skinparam componentBackgroundColor White
 
-[UI] --> [Core]
+[CLI] --> [Core]
+[grpcClient] --> [grpcServer]
+[grpcServer] --> [Core]
 [Core] --> [Connections]
 @enduml

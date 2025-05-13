@@ -7,6 +7,13 @@ use tokio::time::{timeout, Duration};
 
 #[tokio::test]
 async fn local_ssh_echo_server() -> anyhow::Result<()> {
+    //   Logs will appear only when you run with `-- --nocapture`
+    //   or when the test fails.
+    let _ = env_logger::Builder::from_default_env()
+        .filter_level(LevelFilter::Debug)  
+        .is_test(true)
+        .try_init();
+
     // spins up a disposable sshd in a temp dir
     let session = Session::new().known_hosts_check(KnownHosts::Accept).connect_mux("localhost").await?;
     session.command("sh")

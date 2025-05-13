@@ -1095,11 +1095,13 @@ dependencies = [
 name = "putty_core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "crossterm",
  "env_logger",
  "log",
  "openssh",
+ "regex",
  "ssh2",
  "tokio",
  "tokio-serial",

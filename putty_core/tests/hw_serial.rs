@@ -38,11 +38,12 @@ async fn spawn_socat_pair() -> anyhow::Result<(PathBuf, PathBuf, Child)> {
     let mut stderr_lines =
         BufReader::new(socat_child.stderr.take().expect("capturing socat stderr")).lines();
 
-    let line_regex = Regex::new(r#"opening character device "([^"]+)""#)?;
+    let virtual_device_regex = Regex::new(r#"(/dev/[^\s"]+)"#)?;
     let mut pty_paths: Vec<PathBuf> = Vec::with_capacity(2);
 
     while let Some(line) = stderr_lines.next_line().await? {
-        if let Some(caps) = line_regex.captures(&line) {
+        log::debug!("socat: {}", line);
+        if let Some(caps) = virtual_device_regex.captures(&line) {
             pty_paths.push(PathBuf::from(&caps[1]));
             if pty_paths.len() == 2 {
                 break;

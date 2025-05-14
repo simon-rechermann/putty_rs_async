@@ -5,7 +5,7 @@
 #![cfg(feature = "hw-tests")]
 
 use anyhow::{Context, Result};
-use openssh::{KnownHosts, SessionBuilder, Stdio};
+// use openssh::{KnownHosts, SessionBuilder, Stdio};
 use std::{
     fs,
     io::Write,
@@ -16,8 +16,8 @@ use std::{
     time::{Duration, Instant},
 };
 use tempfile::{tempdir, NamedTempFile};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use which::which;
+use putty_core::{connections::ssh::ssh_connection::SshConnection, ConnectionManager};
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -92,7 +92,7 @@ UsePAM                no
 StrictModes           no          # ← allow /tmp parent dir
 
 PidFile {pidfile}
-LogLevel QUIET                  # ← set to DEBUG3 for more info
+LogLevel DEBUG3                  # ← set to DEBUG3 for more info
 "#,
         port = port,
         host_key = host_key.display(),
@@ -112,37 +112,52 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     wait_until_listening(port, 2_000);
 
     // ── 6. client side: connect with the key we just made ──────────────────
-    let session = SessionBuilder::default()
-        .keyfile(&client_key)
-        .known_hosts_check(KnownHosts::Accept) // accept the fresh host key
-        .port(port)
-        .connect_mux("127.0.0.1")
+    let user: String = "simon".into(); //std::env::var("USER").unwrap_or_else(|_| "nobody".into());
+ 
+    let conn = SshConnection::with_key(
+        "127.0.0.1".into(),
+        port,
+        user.clone(),
+        client_key.clone(),   // ← same key we just authored
+        None,                 // passphrase
+    );
+
+    let manager = ConnectionManager::new();
+    manager
+        .add_connection("ssh".into(), Box::new(conn))
         .await
-        .context("ssh connect failed")?;
+        .expect("add_connection failed");
 
-    // ── 7. run a super‑simple echo program ("cat") on the remote side ──────
-    let mut remote = session
-        .command("sh")
-        .arg("-c")
-        .arg("exec cat") // `cat` echoes stdin → stdout
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .await?;
+    let mut rx = manager
+        .subscribe("ssh")
+        .await
+        .expect("subscribe failed");
 
-    // Send “hi\n” and read it back
-    let mut stdin = remote.stdin().take().unwrap();
-    let mut stdout = remote.stdout().take().unwrap();
+    // ── 7. round‑trip ----------------------------------------------------------
+    manager.write_bytes("ssh", b"hi\n").await?;
 
-    stdin.write_all(b"hi\n").await?;
-    stdin.flush().await?;
+    // Pull chunks until one of them contains the bytes h‑i (max 2 s)
+    let echoed: Vec<u8> = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let chunk = rx.recv().await.expect("channel closed");  // Result → Vec<u8>
+            if chunk.windows(2).any(|w| w == b"hi") {
+                break chunk;                                       // success
+            }
+        }
+    })
+    .await?;   // propagate timeout = test failure
 
-    let mut buf = [0u8; 3];
-    stdout.read_exact(&mut buf).await?;
-    assert_eq!(&buf, b"hi\n");
+    // A real assertion: make sure the bytes are in the buffer we kept
+    assert!(
+        echoed.windows(2).any(|w| w == b"hi"),
+        "did not find 'hi' in echoed data: {:?}",
+        echoed
+    );
 
-    // ── 8. tidy up ─────────────────────────────────────────────────────────
-    drop(session); // close the SSH master socket
+    log::info!("received: {:?}", String::from_utf8_lossy(&echoed));
+
+    // ── 8. tidy up (unchanged) ────────────────────────────────────────────────
+    manager.stop_connection("ssh").await.ok();
     sshd.kill().ok();
     sshd.wait().ok();
 

@@ -8,6 +8,7 @@ use std::{
     collections::VecDeque,
     io::{Read, Write},
     net::TcpStream,
+    path::PathBuf,
     thread,
     time::Duration,
 };
@@ -17,7 +18,8 @@ pub struct SshConnection {
     host: String,
     port: u16,
     username: String,
-    password: String,
+    password: Option<String>,
+    keyfile:  Option<(PathBuf, Option<String>)>,
 
     write_tx: Option<mpsc::Sender<Vec<u8>>>,
     read_rx: Option<mpsc::Receiver<Vec<u8>>>,
@@ -32,7 +34,29 @@ impl SshConnection {
             host,
             port,
             username,
-            password,
+            password: Some(password),
+            keyfile: None,
+            write_tx: None,
+            read_rx: None,
+            leftovers: VecDeque::new(),
+            worker: None,
+        }
+    }
+
+    /// Constructor for public‑key authentication
+    pub fn with_key(
+        host: String,
+        port: u16,
+        username: String,
+        private_key: PathBuf,
+        passphrase: Option<String>,
+    ) -> Self {
+        Self {
+            host,
+            port,
+            username,
+            password: None,
+            keyfile: Some((private_key, passphrase)),
             write_tx: None,
             read_rx: None,
             leftovers: VecDeque::new(),
@@ -47,6 +71,7 @@ impl Connection for SshConnection {
         let addr = format!("{}:{}", self.host, self.port);
         let username = self.username.clone();
         let password = self.password.clone();
+        let keyfile = self.keyfile.clone();
 
         let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
         let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
@@ -79,7 +104,22 @@ impl Connection for SshConnection {
                 error!("Handshake error: {}", e);
                 return;
             }
-            if let Err(e) = session.userauth_password(&username, &password) {
+
+            // ---- authenticate ----------------------------------------
+            let auth_res = if let Some((privkey, phr)) = keyfile {
+                session.userauth_pubkey_file(
+                    &username,
+                    None,                // let libssh2 derive ".pub"
+                    &privkey,
+                    phr.as_deref(),
+                )
+            } else if let Some(pw) = password {
+                session.userauth_password(&username, &pw)
+            } else {
+                Err(ssh2::Error::from_errno(ssh2::ErrorCode::Session(-18)))
+            };
+
+            if let Err(e) = auth_res {
                 error!("Authentication error: {}", e);
                 return;
             }

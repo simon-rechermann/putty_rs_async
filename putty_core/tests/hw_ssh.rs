@@ -51,8 +51,8 @@ fn wait_until_listening(port: u16, timeout_ms: u64) {
 #[tokio::test]
 async fn sshd_echo_roundtrip() -> Result<()> {
     // ── 1. workspace (auto‑deleted) + free port ────────────────────────────
-    let workdir          = tempdir()?;
-    let port             = free_tcp_port();
+    let workdir = tempdir()?;
+    let port = free_tcp_port();
 
     // ── 2. generate **server** host key  (ssh‑host‑key) ────────────────────
     let host_key = workdir.path().join("host_ed25519");
@@ -94,10 +94,10 @@ StrictModes           no          # ← allow /tmp parent dir
 PidFile {pidfile}
 LogLevel QUIET                  # ← set to DEBUG3 for more info
 "#,
-        port            = port,
-        host_key        = host_key.display(),
+        port = port,
+        host_key = host_key.display(),
         authorized_keys = authorized_keys.display(),
-        pidfile         = workdir.path().join("sshd.pid").display(),
+        pidfile = workdir.path().join("sshd.pid").display(),
     )?;
     cfg.flush()?;
 
@@ -113,8 +113,8 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
 
     // ── 6. client side: connect with the key we just made ──────────────────
     let session = SessionBuilder::default()
-        .keyfile(&client_key)               // <── tells ssh to use that key
-        .known_hosts_check(KnownHosts::Accept)    // accept the fresh host key
+        .keyfile(&client_key) // <── tells ssh to use that key
+        .known_hosts_check(KnownHosts::Accept) // accept the fresh host key
         .port(port)
         .connect_mux("127.0.0.1")
         .await
@@ -124,14 +124,14 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     let mut remote = session
         .command("sh")
         .arg("-c")
-        .arg("exec cat")          // `cat` echoes stdin → stdout
+        .arg("exec cat") // `cat` echoes stdin → stdout
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
         .await?;
 
     // Send “hi\n” and read it back
-    let mut stdin  = remote.stdin().take().unwrap();
+    let mut stdin = remote.stdin().take().unwrap();
     let mut stdout = remote.stdout().take().unwrap();
 
     stdin.write_all(b"hi\n").await?;
@@ -142,7 +142,7 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     assert_eq!(&buf, b"hi\n");
 
     // ── 8. tidy up ─────────────────────────────────────────────────────────
-    drop(session);             // close the SSH master socket
+    drop(session); // close the SSH master socket
     sshd.kill().ok();
     sshd.wait().ok();
 

@@ -92,7 +92,7 @@ UsePAM                no
 StrictModes           no          # ← allow /tmp parent dir
 
 PidFile {pidfile}
-LogLevel DEBUG3                  # ← set to DEBUG3 for more info
+LogLevel QUIET                  # ← set to DEBUG3 for more info
 "#,
         port = port,
         host_key = host_key.display(),
@@ -112,7 +112,7 @@ LogLevel DEBUG3                  # ← set to DEBUG3 for more info
     wait_until_listening(port, 2_000);
 
     // ── 6. client side: connect with the key we just made ──────────────────
-    let user: String = "simon".into(); //std::env::var("USER").unwrap_or_else(|_| "nobody".into());
+    let user: String = std::env::var("USER").expect("USER env var is needed for ssh test but not set");
  
     let conn = SshConnection::with_key(
         "127.0.0.1".into(),

@@ -12,6 +12,10 @@ use std::{
     thread,
     time::Duration,
 };
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tokio::sync::mpsc;
 
 pub struct SshConnection {
@@ -26,6 +30,7 @@ pub struct SshConnection {
 
     leftovers: VecDeque<u8>,
     worker: Option<thread::JoinHandle<()>>,
+    stop_flag: Arc<AtomicBool>,
 }
 
 impl SshConnection {
@@ -40,6 +45,7 @@ impl SshConnection {
             read_rx: None,
             leftovers: VecDeque::new(),
             worker: None,
+            stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -61,6 +67,7 @@ impl SshConnection {
             read_rx: None,
             leftovers: VecDeque::new(),
             worker: None,
+            stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -72,6 +79,7 @@ impl Connection for SshConnection {
         let username = self.username.clone();
         let password = self.password.clone();
         let keyfile = self.keyfile.clone();
+        let stop_flag = self.stop_flag.clone();              // ← share with thread
 
         let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
         let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
@@ -147,6 +155,10 @@ impl Connection for SshConnection {
             let mut buf = [0u8; 1024];
 
             loop {
+                if stop_flag.load(Ordering::Relaxed) {
+                    info!("Worker received stop flag, exiting I/O loop");
+                    break;
+                }
                 // outgoing
                 while let Ok(pkt) = write_rx.try_recv() {
                     if let Err(e) = channel.write_all(&pkt) {
@@ -184,7 +196,10 @@ impl Connection for SshConnection {
     }
 
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
-        self.write_tx = None; // tell worker to exit
+        // signal the worker thread to leave its loop
+        self.stop_flag.store(true, Ordering::SeqCst);
+
+        self.write_tx = None; // drop sender → closes mpsc channel
         if let Some(jh) = self.worker.take() {
             let _ = jh.join();
         }

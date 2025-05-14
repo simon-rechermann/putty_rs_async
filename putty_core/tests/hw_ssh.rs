@@ -113,7 +113,7 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
 
     // ── 6. client side: connect with the key we just made ──────────────────
     let session = SessionBuilder::default()
-        .keyfile(&client_key) // <── tells ssh to use that key
+        .keyfile(&client_key)
         .known_hosts_check(KnownHosts::Accept) // accept the fresh host key
         .port(port)
         .connect_mux("127.0.0.1")

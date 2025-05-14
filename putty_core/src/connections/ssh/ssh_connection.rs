@@ -4,6 +4,10 @@ use log::{error, info};
 use ssh2::Session;
 
 use std::io::ErrorKind;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::{
     collections::VecDeque,
     io::{Read, Write},
@@ -12,10 +16,6 @@ use std::{
     thread,
     time::Duration,
 };
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 use tokio::sync::mpsc;
 
 pub struct SshConnection {
@@ -23,7 +23,7 @@ pub struct SshConnection {
     port: u16,
     username: String,
     password: Option<String>,
-    keyfile:  Option<(PathBuf, Option<String>)>,
+    keyfile: Option<(PathBuf, Option<String>)>,
 
     write_tx: Option<mpsc::Sender<Vec<u8>>>,
     read_rx: Option<mpsc::Receiver<Vec<u8>>>,
@@ -79,7 +79,7 @@ impl Connection for SshConnection {
         let username = self.username.clone();
         let password = self.password.clone();
         let keyfile = self.keyfile.clone();
-        let stop_flag = self.stop_flag.clone();              // ← share with thread
+        let stop_flag = self.stop_flag.clone(); // ← share with thread
 
         let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
         let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
@@ -117,7 +117,7 @@ impl Connection for SshConnection {
             let auth_res = if let Some((privkey, phr)) = keyfile {
                 session.userauth_pubkey_file(
                     &username,
-                    None,                // let libssh2 derive ".pub"
+                    None, // let libssh2 derive ".pub"
                     &privkey,
                     phr.as_deref(),
                 )

@@ -6,6 +6,7 @@
 
 use anyhow::{Context, Result};
 // use openssh::{KnownHosts, SessionBuilder, Stdio};
+use putty_core::{connections::ssh::ssh_connection::SshConnection, ConnectionManager};
 use std::{
     fs,
     io::Write,
@@ -17,7 +18,6 @@ use std::{
 };
 use tempfile::{tempdir, NamedTempFile};
 use which::which;
-use putty_core::{connections::ssh::ssh_connection::SshConnection, ConnectionManager};
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -112,14 +112,15 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     wait_until_listening(port, 2_000);
 
     // ── 6. client side: connect with the key we just made ──────────────────
-    let user: String = std::env::var("USER").expect("USER env var is needed for ssh test but not set");
- 
+    let user: String =
+        std::env::var("USER").expect("USER env var is needed for ssh test but not set");
+
     let conn = SshConnection::with_key(
         "127.0.0.1".into(),
         port,
         user.clone(),
-        client_key.clone(),   // ← same key we just authored
-        None,                 // passphrase
+        client_key.clone(), // ← same key we just authored
+        None,               // passphrase
     );
 
     let manager = ConnectionManager::new();
@@ -128,10 +129,7 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
         .await
         .expect("add_connection failed");
 
-    let mut rx = manager
-        .subscribe("ssh")
-        .await
-        .expect("subscribe failed");
+    let mut rx = manager.subscribe("ssh").await.expect("subscribe failed");
 
     // ── 7. round‑trip ----------------------------------------------------------
     manager.write_bytes("ssh", b"hi\n").await?;
@@ -139,13 +137,13 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     // Pull chunks until one of them contains the bytes h‑i (max 2 s)
     let echoed: Vec<u8> = tokio::time::timeout(Duration::from_secs(2), async {
         loop {
-            let chunk = rx.recv().await.expect("channel closed");  // Result → Vec<u8>
+            let chunk = rx.recv().await.expect("channel closed"); // Result → Vec<u8>
             if chunk.windows(2).any(|w| w == b"hi") {
-                break chunk;                                       // success
+                break chunk; // success
             }
         }
     })
-    .await?;   // propagate timeout = test failure
+    .await?; // propagate timeout = test failure
 
     // A real assertion: make sure the bytes are in the buffer we kept
     assert!(

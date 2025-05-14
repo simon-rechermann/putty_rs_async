@@ -1,78 +1,150 @@
+//! Integration test that spins‑up a throw‑away OpenSSH **server
+//! in the foreground** and talks to it over 127.0.0.1 using a
+//! throw‑away key‑pair.
+
 #![cfg(feature = "hw-tests")]
 
+use anyhow::{Context, Result};
 use openssh::{KnownHosts, SessionBuilder, Stdio};
-use putty_core::{
-    connections::ssh::ssh_connection::SshConnection,
-    ConnectionManager,
+use std::{
+    fs,
+    io::Write,
+    net::{TcpListener, TcpStream},
+    os::unix::fs::PermissionsExt,
+    process::{Child, Command},
+    thread::sleep,
+    time::{Duration, Instant},
 };
+use tempfile::{tempdir, NamedTempFile};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use which::which;
 
-use std::{env, net::TcpStream, time::Duration};
-use tokio::time::timeout;
-use log::LevelFilter;
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
 
-/// Integration‑test helper: return `true` iff we can open `localhost:22`.
-fn sshd_available() -> bool {
-    TcpStream::connect_timeout(&("127.0.0.1:22".parse().unwrap()), Duration::from_millis(300))
-        .is_ok()
+/// Grab any free high port by asking the OS for port 0
+fn free_tcp_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
 }
 
-#[tokio::test]
-async fn local_ssh_echo_server() -> anyhow::Result<()> {
-    // ── enable DEBUG logs unless caller overrides ───────────────────────────
-    let _ = env_logger::Builder::from_default_env()
-        .filter_level(LevelFilter::Debug)
-        .is_test(true)
-        .try_init();
-
-    // ── Skip gracefully if there is no sshd running on port 22 ──────────────
-    if !sshd_available() {
-        eprintln!("skipping hw_ssh: no sshd on localhost:22");
-        return Ok(());        // test counts as "pass" but is skipped
+/// Wait until `127.0.0.1:port` starts accepting connections
+fn wait_until_listening(port: u16, timeout_ms: u64) {
+    let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+    while Instant::now() < deadline {
+        if TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            return;
+        }
+        sleep(Duration::from_millis(30));
     }
+    panic!("sshd did not start on port {port}");
+}
 
-    // ── 1. Connect to the local sshd using openssh's native mux impl ────────
-    let ssh_session = SessionBuilder::default()
-        .known_hosts_check(KnownHosts::Accept)
-        .connect_mux("localhost")
-        .await?;
+// ---------------------------------------------------------------------------
+// The actual test
+// ---------------------------------------------------------------------------
 
-    // Start a trivial echo loop on the remote side.
-    ssh_session
+#[tokio::test]
+async fn sshd_echo_roundtrip() -> Result<()> {
+    // ── 1. workspace (auto‑deleted) + free port ────────────────────────────
+    let workdir          = tempdir()?;
+    let port             = free_tcp_port();
+
+    // ── 2. generate **server** host key  (ssh‑host‑key) ────────────────────
+    let host_key = workdir.path().join("host_ed25519");
+    Command::new(which("ssh-keygen")?)
+        .args(["-q", "-t", "ed25519", "-N", "", "-f"])
+        .arg(&host_key)
+        .status()
+        .context("failed to create host key")?;
+
+    // ── 3. generate **client** key pair  (used by this test) ───────────────
+    let client_key = workdir.path().join("client_ed25519");
+    Command::new(which("ssh-keygen")?)
+        .args(["-q", "-t", "ed25519", "-N", "", "-f"])
+        .arg(&client_key)
+        .status()
+        .context("failed to create client key")?;
+
+    // authorise that client key for *any* local user running the test
+    let authorized_keys = workdir.path().join("authorized_keys");
+    fs::copy(client_key.with_extension("pub"), &authorized_keys)?;
+    fs::set_permissions(&authorized_keys, fs::Permissions::from_mode(0o600))?;
+
+    // ── 4. minimal sshd_config written to a temp file ──────────────────────
+    let mut cfg = NamedTempFile::new_in(workdir.path())?;
+    writeln!(
+        cfg,
+        r#"
+Port {port}
+ListenAddress 127.0.0.1
+HostKey {host_key}
+
+# auth: keys only, no PAM
+PasswordAuthentication no
+PubkeyAuthentication  yes
+AuthorizedKeysFile    {authorized_keys}
+UsePAM                no
+StrictModes           no          # ← allow /tmp parent dir
+
+PidFile {pidfile}
+LogLevel QUIET                  # ← set to DEBUG3 for more info
+"#,
+        port            = port,
+        host_key        = host_key.display(),
+        authorized_keys = authorized_keys.display(),
+        pidfile         = workdir.path().join("sshd.pid").display(),
+    )?;
+    cfg.flush()?;
+
+    // ── 5. start sshd in the foreground (-D) so we can kill it later ───────
+    let sshd_path = which("sshd")?;
+    let mut sshd: Child = Command::new(sshd_path)
+        .args(["-e", "-D", "-f"])
+        .arg(cfg.path())
+        .spawn()
+        .context("unable to launch sshd")?;
+
+    wait_until_listening(port, 2_000);
+
+    // ── 6. client side: connect with the key we just made ──────────────────
+    let session = SessionBuilder::default()
+        .keyfile(&client_key)               // <── tells ssh to use that key
+        .known_hosts_check(KnownHosts::Accept)    // accept the fresh host key
+        .port(port)
+        .connect_mux("127.0.0.1")
+        .await
+        .context("ssh connect failed")?;
+
+    // ── 7. run a super‑simple echo program ("cat") on the remote side ──────
+    let mut remote = session
         .command("sh")
         .arg("-c")
-        .arg("while read l; do echo $l; done")
+        .arg("exec cat")          // `cat` echoes stdin → stdout
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
         .await?;
 
-    // ── 2. putty_core side: open our own SshConnection to port 22 ───────────
-    let username = env::var("USER").unwrap_or_else(|_| "nobody".into());
+    // Send “hi\n” and read it back
+    let mut stdin  = remote.stdin().take().unwrap();
+    let mut stdout = remote.stdout().take().unwrap();
 
-    let ssh_connection = SshConnection::new(
-        "127.0.0.1".into(),
-        22,
-        username,
-        "".into(),          // empty password triggers key‑based auth
-    );
+    stdin.write_all(b"hi\n").await?;
+    stdin.flush().await?;
 
-    let connection_manager = ConnectionManager::new();
-    connection_manager
-        .add_connection("ssh".into(), Box::new(ssh_connection))
-        .await?;
+    let mut buf = [0u8; 3];
+    stdout.read_exact(&mut buf).await?;
+    assert_eq!(&buf, b"hi\n");
 
-    let mut broadcast_receiver = connection_manager
-        .subscribe("ssh")
-        .await
-        .expect("subscribe failed");
+    // ── 8. tidy up ─────────────────────────────────────────────────────────
+    drop(session);             // close the SSH master socket
+    sshd.kill().ok();
+    sshd.wait().ok();
 
-    connection_manager
-        .write_bytes("ssh", b"hi\n")
-        .await?;
-
-    let echoed = timeout(Duration::from_secs(2), broadcast_receiver.recv())
-        .await?
-        .expect("broadcast channel closed unexpectedly");
-
-    assert_eq!(echoed, b"hi\n");
     Ok(())
 }

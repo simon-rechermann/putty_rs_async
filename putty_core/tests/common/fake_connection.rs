@@ -32,7 +32,7 @@ impl FakeConnection {
     /// Returns a triple:
     /// 1. `FakeConnection` – move this into `Box::new(...)` and hand it to
     ///    `ConnectionManager::add_connection`.
-    /// 2. `test_to_fake_tx` – send bytes **into** the fake (simulated device input).
+    /// 2. `test_to_fake_tx` – send bytes into the fake (simulated device input).
     /// 3. `fake_to_test_rx` – receive bytes the manager tried to write (optional).
     pub fn new() -> (Self, mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
         let (test_to_fake_tx, test_to_fake_rx) = mpsc::channel(32);
@@ -68,7 +68,7 @@ impl Connection for FakeConnection {
         // Record for later assertions …
         self.write_history.push(data.to_vec());
 
-        // … and echo back through the helper channel (rarely used).
+        // and echo back through the helper channel (rarely used).
         let _ = self.fake_to_test_tx.send(data.to_vec()).await;
         Ok(data.len())
     }

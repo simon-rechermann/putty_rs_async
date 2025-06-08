@@ -1,5 +1,5 @@
-//! Integration test that spins‑up a throw‑away OpenSSH **server
-//! in the foreground** and talks to it over 127.0.0.1 using a
+//! Integration test that spins‑up a throw‑away OpenSSH server
+//! in the foreground and talks to it over 127.0.0.1 using a
 //! throw‑away key‑pair.
 
 #![cfg(feature = "hw-tests")]

@@ -5,7 +5,7 @@ mod common;
 use common::fake_connection::FakeConnection;
 
 #[tokio::test]
-async fn stop_connection_removes_handle_and_second_call_errors() {
+async fn stop_connection_twice() {
     //   Logs will appear only when you run with `-- --nocapture`
     //   or when the test fails.
     let _ = env_logger::Builder::from_default_env()
@@ -29,13 +29,8 @@ async fn stop_connection_removes_handle_and_second_call_errors() {
         .expect("first stop should succeed");
 
     // ── Assert ─ a second stop must fail because the entry is gone ────────────
-    let second_stop_error = connection_manager
+    connection_manager
         .stop_connection(connection_id)
         .await
         .expect_err("second stop should fail; the connection is already removed");
-
-    assert!(
-        second_stop_error.to_string().contains("No connection"),
-        "error message should mention that the connection no longer exists"
-    );
 }

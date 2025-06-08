@@ -1,8 +1,7 @@
 //! hw_serial.rs – round‑trip test through a virtual serial pair created
-//! on‑the‑fly with `socat`.  Built **only** on Unix when the `hw-tests`
-//! feature is enabled.
-#![cfg(feature = "hw-tests")]
-#![cfg(unix)]
+//! on‑the‑fly with `socat`.  Built **only** on Linux when the `hw-tests`
+//! feature is enabled -> on MacOS socat virtual serial behaves differently and it fails.
+#![cfg(all(feature = "hw-tests", target_os = "linux"))]
 
 use putty_core::{connections::serial::serial_connection::SerialConnection, ConnectionManager};
 
@@ -64,7 +63,7 @@ async fn virtual_serial_roundtrip() {
         .try_init();
 
     // ── Obtain a fresh virtual port pair via socat ────────────────────────────
-    let (left_pty_path, right_pty_path, _socat_child) =
+    let (left_pty_path, right_pty_path, mut socat_child) =
         spawn_socat_pair().await.expect("failed to spawn socat");
 
     log::info!(
@@ -118,4 +117,12 @@ async fn virtual_serial_roundtrip() {
         .expect("broadcast channel closed unexpectedly");
 
     assert_eq!(echoed_frame, b"ping");
+
+    socat_child.kill()
+        .await
+        .expect("failed to kill socat");
+    socat_child
+        .wait()
+        .await
+        .expect("failed to wait for socat child process");
 }

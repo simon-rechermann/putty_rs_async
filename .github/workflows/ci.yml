@@ -116,7 +116,7 @@ jobs:
       - if: runner.os == 'macOS'
         name: Install hw-deps (macOS)
         run: |
-          brew install socat openssh
+          brew install openssh
 
       - uses: arduino/setup-protoc@v3
         with:

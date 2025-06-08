@@ -118,9 +118,7 @@ async fn virtual_serial_roundtrip() {
 
     assert_eq!(echoed_frame, b"ping");
 
-    socat_child.kill()
-        .await
-        .expect("failed to kill socat");
+    socat_child.kill().await.expect("failed to kill socat");
     socat_child
         .wait()
         .await

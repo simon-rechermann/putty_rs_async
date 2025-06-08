@@ -3,6 +3,7 @@
 //! throw‑away key‑pair.
 
 #![cfg(feature = "hw-tests")]
+#![cfg(unix)]
 
 use anyhow::{Context, Result};
 // use openssh::{KnownHosts, SessionBuilder, Stdio};

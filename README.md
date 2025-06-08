@@ -78,6 +78,25 @@ python grpc_cli_client.py serial --port /dev/pts/3
 
 ## Run integration tests
 
+Here are some examples of how you can run the integration tests.
+The hw-tests (test having this feature configured #![cfg(feature = "hw-tests")])
+will only be compiled and run on unix machines.
+
+Run all tests:
+
+```bash
+cargo test --features hw-tests
+```
+
+Run all test excluding the ones maked with #![cfg(feature = "hw-tests")]
+
+```bash
+cargo test
+# As only the putty_core package(which consists out of the putty_core lib crate and the tests binary crates)
+# has integration tests the following command does the same
+cargo test -p putty_core
+```
+
 Run ssh hw-test and enable logging output
 
 ```bash

@@ -9,7 +9,7 @@ mod common;
 use common::fake_connection::FakeConnection;
 
 #[tokio::test]
-async fn roundtrip_and_write_path() {
+async fn roundtrip_and_write() {
     //   Logs will appear only when you run with `-- --nocapture`
     //   or when the test fails.
     let _ = env_logger::Builder::from_default_env()
@@ -19,7 +19,7 @@ async fn roundtrip_and_write_path() {
 
     // ── Setup ────────────────────────────────────────────────────────────
     let connection_manager = ConnectionManager::new();
-    let (fake_connection, test_to_fake_tx, _fake_to_test_rx) = FakeConnection::new();
+    let (fake_connection, test_to_fake_tx, mut fake_to_test_rx) = FakeConnection::new();
 
     connection_manager
         .add_connection("fakePort".into(), Box::new(fake_connection))
@@ -57,5 +57,22 @@ async fn roundtrip_and_write_path() {
     assert_eq!(
         bytes_written, 3,
         "write_bytes should report the number of bytes handed to the connection"
+    );
+
+    // Wait for the fake connection to send those bytes into ring-buffer B
+    let written_bytes = timeout(Duration::from_millis(100), fake_to_test_rx.recv())
+        .await
+        .expect("timeout waiting for bytes written into the fake")
+        .expect("fake_to_test channel closed unexpectedly");
+
+    assert_eq!(
+        written_bytes,
+        b"AT\r",
+        "manager should write the exact command we asked for"
+    );
+
+    assert!(
+        fake_to_test_rx.try_recv().is_err(),
+        "nothing else should have been sent"
     );
 }

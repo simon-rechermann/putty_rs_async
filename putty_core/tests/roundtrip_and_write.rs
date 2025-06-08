@@ -66,8 +66,7 @@ async fn roundtrip_and_write() {
         .expect("fake_to_test channel closed unexpectedly");
 
     assert_eq!(
-        written_bytes,
-        b"AT\r",
+        written_bytes, b"AT\r",
         "manager should write the exact command we asked for"
     );
 

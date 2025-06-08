@@ -106,4 +106,4 @@ jobs:
           toolchain: stable
 
       - name: Run tests
-        run: cargo test
+        run: cargo test --features hw-tests

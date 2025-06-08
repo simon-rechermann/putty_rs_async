@@ -4,10 +4,15 @@ use log::{error, info};
 use ssh2::Session;
 
 use std::io::ErrorKind;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::{
     collections::VecDeque,
     io::{Read, Write},
     net::TcpStream,
+    path::PathBuf,
     thread,
     time::Duration,
 };
@@ -17,13 +22,15 @@ pub struct SshConnection {
     host: String,
     port: u16,
     username: String,
-    password: String,
+    password: Option<String>,
+    keyfile: Option<(PathBuf, Option<String>)>,
 
     write_tx: Option<mpsc::Sender<Vec<u8>>>,
     read_rx: Option<mpsc::Receiver<Vec<u8>>>,
 
     leftovers: VecDeque<u8>,
     worker: Option<thread::JoinHandle<()>>,
+    stop_flag: Arc<AtomicBool>,
 }
 
 impl SshConnection {
@@ -32,11 +39,35 @@ impl SshConnection {
             host,
             port,
             username,
-            password,
+            password: Some(password),
+            keyfile: None,
             write_tx: None,
             read_rx: None,
             leftovers: VecDeque::new(),
             worker: None,
+            stop_flag: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Constructor for public‑key authentication
+    pub fn with_key(
+        host: String,
+        port: u16,
+        username: String,
+        private_key: PathBuf,
+        passphrase: Option<String>,
+    ) -> Self {
+        Self {
+            host,
+            port,
+            username,
+            password: None,
+            keyfile: Some((private_key, passphrase)),
+            write_tx: None,
+            read_rx: None,
+            leftovers: VecDeque::new(),
+            worker: None,
+            stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -47,6 +78,8 @@ impl Connection for SshConnection {
         let addr = format!("{}:{}", self.host, self.port);
         let username = self.username.clone();
         let password = self.password.clone();
+        let keyfile = self.keyfile.clone();
+        let stop_flag = self.stop_flag.clone(); // ← share with thread
 
         let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
         let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
@@ -79,7 +112,22 @@ impl Connection for SshConnection {
                 error!("Handshake error: {}", e);
                 return;
             }
-            if let Err(e) = session.userauth_password(&username, &password) {
+
+            // ---- authenticate ----------------------------------------
+            let auth_res = if let Some((privkey, phr)) = keyfile {
+                session.userauth_pubkey_file(
+                    &username,
+                    None, // let libssh2 derive ".pub"
+                    &privkey,
+                    phr.as_deref(),
+                )
+            } else if let Some(pw) = password {
+                session.userauth_password(&username, &pw)
+            } else {
+                Err(ssh2::Error::from_errno(ssh2::ErrorCode::Session(-18)))
+            };
+
+            if let Err(e) = auth_res {
                 error!("Authentication error: {}", e);
                 return;
             }
@@ -107,6 +155,10 @@ impl Connection for SshConnection {
             let mut buf = [0u8; 1024];
 
             loop {
+                if stop_flag.load(Ordering::Relaxed) {
+                    info!("Worker received stop flag, exiting I/O loop");
+                    break;
+                }
                 // outgoing
                 while let Ok(pkt) = write_rx.try_recv() {
                     if let Err(e) = channel.write_all(&pkt) {
@@ -144,7 +196,10 @@ impl Connection for SshConnection {
     }
 
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
-        self.write_tx = None; // tell worker to exit
+        // signal the worker thread to leave its loop
+        self.stop_flag.store(true, Ordering::SeqCst);
+
+        self.write_tx = None; // drop sender → closes mpsc channel
         if let Some(jh) = self.worker.take() {
             let _ = jh.join();
         }

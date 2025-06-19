@@ -1,11 +1,12 @@
-
 use std::net::SocketAddr;
 
 use putty_core::{connections::connection::Connection, ConnectionManager};
 use tokio::sync::mpsc;
 use tonic::{
-    transport::Server as TonicServer,      // gRPC transport server
-    Request as TReq, Response as TResp, Status,
+    transport::Server as TonicServer, // gRPC transport server
+    Request as TReq,
+    Response as TResp,
+    Status,
 };
 use tonic_web::GrpcWebLayer;
 use tower_http::cors::CorsLayer;
@@ -15,9 +16,7 @@ use tracing::info;
 pub mod putty_interface {
     tonic::include_proto!("putty_interface");
 }
-use putty_interface::remote_connection_server::{
-    RemoteConnection, RemoteConnectionServer,
-};
+use putty_interface::remote_connection_server::{RemoteConnection, RemoteConnectionServer};
 use putty_interface::*;
 
 // ── gRPC service backed by putty_core ─────────────────────────────────────────
@@ -43,46 +42,55 @@ impl RemoteConnection for ConnectionSvc {
         req: TReq<CreateRequest>,
     ) -> Result<TResp<ConnectionId>, Status> {
         let id = uuid::Uuid::new_v4().to_string();
-        let conn: Box<dyn Connection + Send + Unpin + 'static> =
-            match req.into_inner().kind.ok_or(Status::invalid_argument("kind"))? {
-                create_request::Kind::Serial(s) => Box::new(
-                    putty_core::connections::serial::SerialConnection::new(s.port, s.baud),
-                ),
-                create_request::Kind::Ssh(s) => Box::new(
-                    putty_core::connections::ssh::SshConnection::new(
-                        s.host, s.port as u16, s.user, s.password,
-                    ),
-                ),
-            };
+        let conn: Box<dyn Connection + Send + Unpin + 'static> = match req
+            .into_inner()
+            .kind
+            .ok_or(Status::invalid_argument("kind"))?
+        {
+            create_request::Kind::Serial(s) => Box::new(
+                putty_core::connections::serial::SerialConnection::new(s.port, s.baud),
+            ),
+            create_request::Kind::Ssh(s) => {
+                Box::new(putty_core::connections::ssh::SshConnection::new(
+                    s.host,
+                    s.port as u16,
+                    s.user,
+                    s.password,
+                ))
+            }
+        };
 
-        self.mgr.add_connection(id.clone(), conn).await
+        self.mgr
+            .add_connection(id.clone(), conn)
+            .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(TResp::new(ConnectionId { id }))
     }
 
-    async fn write(&self, req: TReq<WriteRequest>)
-        -> Result<TResp<Empty>, Status>
-    {
+    async fn write(&self, req: TReq<WriteRequest>) -> Result<TResp<Empty>, Status> {
         let m = req.into_inner();
-        self.mgr.write_bytes(&m.id, &m.data).await
+        self.mgr
+            .write_bytes(&m.id, &m.data)
+            .await
             .map_err(|e| Status::internal(e.to_string()))?;
         Ok(TResp::new(Empty {}))
     }
 
-    async fn stop(&self, req: TReq<ConnectionId>)
-        -> Result<TResp<Empty>, Status>
-    {
-        self.mgr.stop_connection(&req.into_inner().id).await
+    async fn stop(&self, req: TReq<ConnectionId>) -> Result<TResp<Empty>, Status> {
+        self.mgr
+            .stop_connection(&req.into_inner().id)
+            .await
             .map_err(|e| Status::internal(e.to_string()))?;
         Ok(TResp::new(Empty {}))
     }
 
-    async fn read(&self, req: TReq<ConnectionId>)
-        -> Result<TResp<Self::ReadStream>, Status>
-    {
+    async fn read(&self, req: TReq<ConnectionId>) -> Result<TResp<Self::ReadStream>, Status> {
         let id = req.into_inner().id;
-        let mut rx = self.mgr.subscribe(&id).await
+        let mut rx = self
+            .mgr
+            .subscribe(&id)
+            .await
             .ok_or(Status::not_found("no such connection"))?;
 
         let (tx, rx_stream) = mpsc::channel::<Result<ByteChunk, Status>>(64);
@@ -111,9 +119,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("gRPC-Web listening on http://{addr}");
 
     TonicServer::builder()
-        .accept_http1(true)            // gRPC-Web needs h1
-        .layer(GrpcWebLayer::new())    // translate to gRPC-Web
-        .layer(CorsLayer::permissive())// allow browser calls
+        .accept_http1(true) // gRPC-Web needs h1
+        .layer(GrpcWebLayer::new()) // translate to gRPC-Web
+        .layer(CorsLayer::permissive()) // allow browser calls
         .add_service(svc)
         .serve(addr)
         .await?;

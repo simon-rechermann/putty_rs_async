@@ -7,14 +7,19 @@ build   = "build.rs"
 [dependencies]
 putty_core = { path = "../putty_core" }
 
-tokio       = { version = "1.44.2", features = ["full"] }
-tonic       = { version = "0.13.0", features = ["transport"] }
-prost       = "0.13.5"
-prost-types = "0.13.5"
+# async runtime & gRPC
+tokio       = { version = "1.44", features = ["full"] }
+tonic       = { version = "0.13", features = ["transport"] }
+tonic-web   = "0.13"
+
+# misc helpers
+tower-http          = { version = "0.6", features = ["cors"] }
+prost               = "0.13"
+prost-types         = "0.13"
 uuid                = { version = "1", features = ["v4"] }
 tokio-stream        = "0.1"
 tracing             = "0.1"
 tracing-subscriber  = { version = "0.3", features = ["fmt"] }
 
 [build-dependencies]
-tonic-build = "0.13.0"
+tonic-build = "0.13"

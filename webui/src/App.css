@@ -40,3 +40,21 @@
 .read-the-docs {
   color: #888;
 }
+
+html, body, #root {          /* allow flex-stretch down to the viewport */
+  height: 100%;
+  margin: 0;
+}
+
+.App {                        /* column layout: header + terminal */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  font-family: sans-serif;
+}
+
+.term-wrapper {              /* the only element that should grab free space */
+  flex: 1 1 auto;            /* grow + shrink */
+  border: 1px solid #444;
+}

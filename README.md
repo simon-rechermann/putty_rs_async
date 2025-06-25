@@ -44,6 +44,8 @@ cargo run --bin cli -- ssh --help
 
 ## Test the gRPC server
 
+### With python CLI client
+
 To test the gRPC server you can generate the python gRPC stubs and use the python_client,
 which utilizes the proto interface to provide the same CLI like the rust cli.
 
@@ -74,6 +76,41 @@ cargo run --bin putty_grpc_server
 # In a new termial we can connect to the server with the python client
 cd python_grpc_client
 python grpc_cli_client.py serial --port /dev/pts/3
+```
+
+### With react webUI
+
+For development of the webUI the following flow is usefull.
+
+```bash
+# ------------------------------------------------------------------
+# 1) one-time project setup
+# ------------------------------------------------------------------
+cd webui                        # enter the UI workspace
+
+npm ci                          # install *exactly* the versions in package-lock.json
+                                # (→ reproducible, faster, and safer than `npm install`)
+
+npm run proto                   # generate TypeScript stubs from putty_interface.proto
+                                # (re-run this ONLY if the proto changes)
+
+# ------------------------------------------------------------------
+# 2) start the live-reload dev server (frontend) …
+# ------------------------------------------------------------------
+npm run dev                     # Vite dev server → http://localhost:5173
+                                # proxies /rpc/* to the Rust backend
+
+                                # ------------------------------------------------------------------
+# 2b) Build and preview the release files
+# ------------------------------------------------------------------
+npm run build                     
+npm run preview                 # Vite preview → http://localhost:4173
+
+# ------------------------------------------------------------------
+# 3) …and in another terminal start the backend
+# ------------------------------------------------------------------
+cargo run -p putty_grpc_server  # gRPC-Web + REST UI → http://127.0.0.1:50051
+
 ```
 
 ## Run integration tests

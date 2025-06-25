@@ -1,0 +1,21 @@
+/* -------- global palette & resets -------------------------------- */
+html,body,#root{height:100%;margin:0;background:#141414;color:#ddd}
+input,select,button{
+  background:#222;border:1px solid #555;color:#ddd;padding:2px 6px;
+  font:inherit;border-radius:4px
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+
+/* layout ---------------------------------------------------------- */
+.app{
+  display:flex;flex-direction:column;height:100%;gap:8px;padding:12px
+}
+.toolbar{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center
+}
+.term-wrapper{
+  flex:1 1 auto; /* grow/shrink inside .app */
+  border:1px solid #444;
+  background:#141414;
+  min-height:0 /* ← keeps xterm from pushing page down */
+}

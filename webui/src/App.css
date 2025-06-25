@@ -6,7 +6,7 @@ input,select,button{
 }
 button:disabled{opacity:.5;cursor:not-allowed}
 
-/* -------- layout ------------------------------------------------- */
+/* layout ---------------------------------------------------------- */
 .app{
   display:flex;flex-direction:column;height:100%;gap:8px;padding:12px
 }
@@ -14,7 +14,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
   display:flex;flex-wrap:wrap;gap:6px;align-items:center
 }
 .term-wrapper{
-  flex:1 1 auto;               /* grow/shrink inside .app */
+  flex:1 1 auto; /* grow/shrink inside .app */
   border:1px solid #444;
-  min-height:0;                /* ← keeps xterm from pushing page down */
+  background:#141414;
+  min-height:0 /* ← keeps xterm from pushing page down */
 }

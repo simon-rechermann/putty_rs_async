@@ -1,44 +1,39 @@
-import { useEffect } from "react";
-import useGrpc                        from "./components/useGrpc";
-import TerminalPane, { type XtermHandle } from "./TerminalPane";  // <-- `type` import
+import { useState }  from "react";
+import useGrpc, {
+  type Mode, type SerialCfg, type SshCfg,
+} from "./components/useGrpc";
 
-import Toolbar from "./components/Toolbar";
+import Toolbar       from "./components/Toolbar";
+import TerminalPane  from "./TerminalPane";
+
 import "./App.css";
 
+/* ---------- top-level component -------------------------------- */
 export default function App() {
-  const {
-    mode, setMode,
-    serialCfg, setSerialCfg,
-    sshCfg,    setSshCfg,
-    connecting, connected,
-    connect,
-    termRef,
-  } = useGrpc();
+  /* local form state ------------------------------------------- */
+  const [mode, setMode]           = useState<Mode>("serial");
+  const [serialCfg, setSerialCfg] = useState<SerialCfg>({ port:"/dev/ttyUSB0", baud:115200 });
+  const [sshCfg,    setSshCfg]    = useState<SshCfg>   ({ host:"127.0.0.1", port:22,
+                                                           user:"user", password:"" });
 
-  /* fit xterm whenever size changes */
-  useEffect(() => {
-    const fit = termRef.current?.fit;
-    if (!fit) return;
-    fit();
-    window.addEventListener("resize", fit as any);
-    return () => window.removeEventListener("resize", fit as any);
-  }, [termRef]);
+  /* hook: gRPC connection + terminal handle -------------------- */
+  const { connId, connecting, connect, termRef }
+          = useGrpc();
 
   return (
     <div className="app">
-      <h2>putty-rs&nbsp;<small style={{fontWeight:400}}>(gRPC-Web)</small></h2>
-
       <Toolbar
-        {...{
-          mode, setMode,
-          serialCfg, setSerialCfg,
-          sshCfg,    setSshCfg,
-          connecting, connected,
-          connect,
-        }}
+        mode={mode} setMode={setMode}
+        serialCfg={serialCfg} setSerialCfg={setSerialCfg}
+        sshCfg={sshCfg}       setSshCfg={setSshCfg}
+        connecting={connecting}
+        connected={!!connId}
+        connect={connect}
       />
 
-      <TerminalPane ref={termRef as React.Ref<XtermHandle>} />
+      <div className="term-wrapper">
+        <TerminalPane ref={termRef}/>
+      </div>
     </div>
   );
 }

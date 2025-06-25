@@ -1,41 +1,38 @@
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { Terminal }  from "xterm";
 import { FitAddon }  from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 
-export type XtermHandle = {
-  term: Terminal;
-  fit:  () => void;
-};
+/* shape we expose to parents */
+export interface XtermHandle { term: Terminal }
 
-const TerminalPane = forwardRef<XtermHandle>((_, ref) => {
-  const containerRef   = useRef<HTMLDivElement>(null);
-  const termRef        = useRef<Terminal | null>(null);
-  const fitAddon       = useRef<FitAddon>(new FitAddon());
+const TerminalPane = forwardRef<XtermHandle>((_props, ref) => {
+  const elRef   = useRef<HTMLDivElement>(null);
+  const termRef = useRef<Terminal|null>(null);
 
-  if (!termRef.current) {
-    termRef.current = new Terminal({
-      fontFamily:"monospace",
-      theme:{background:"#1e1e1e"},
-      cursorBlink:true,
-      scrollback:10_000,
+  useEffect(() => {
+    const term = new Terminal({
+      fontFamily: "monospace",
+      cursorBlink: true,
+      scrollback: 10_000,
+      theme: { background: "#141414" },
     });
-    termRef.current.loadAddon(fitAddon.current);
-  }
+    const fit  = new FitAddon();
+    term.loadAddon(fit);
+
+    term.open(elRef.current!);
+    fit.fit();
+    window.addEventListener("resize", () => fit.fit());
+
+    termRef.current = term;
+    return () => term.dispose();
+  }, []);
 
   useImperativeHandle(ref, () => ({
-    term: termRef.current!,
-    fit : () => fitAddon.current.fit(),
+    get term() { return termRef.current!; },
   }), []);
 
-  return <div ref={el=>{
-            if (el && containerRef.current!==el) {
-              containerRef.current = el;
-              termRef.current!.open(el);
-              fitAddon.current.fit();
-            }
-          }}
-          className="term-wrapper"/>;
+  return <div ref={elRef} style={{ height:"100%", width:"100%" }}/>;
 });
 
 export default TerminalPane;

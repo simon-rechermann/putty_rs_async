@@ -21,20 +21,20 @@ use putty_interface::*;
 
 // ── gRPC service backed by putty_core ─────────────────────────────────────────
 #[derive(Clone)]
-struct ConnectionSvc {
-    mgr: ConnectionManager,
+struct ConnectionService {
+    manager: ConnectionManager,
 }
 
-impl ConnectionSvc {
+impl ConnectionService {
     fn new() -> Self {
         Self {
-            mgr: ConnectionManager::new(),
+            manager: ConnectionManager::new(),
         }
     }
 }
 
 #[tonic::async_trait]
-impl RemoteConnection for ConnectionSvc {
+impl RemoteConnection for ConnectionService {
     type ReadStream = tokio_stream::wrappers::ReceiverStream<Result<ByteChunk, Status>>;
 
     async fn create_remote_connection(
@@ -60,7 +60,7 @@ impl RemoteConnection for ConnectionSvc {
             }
         };
 
-        self.mgr
+        self.manager
             .add_connection(id.clone(), conn)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -70,7 +70,7 @@ impl RemoteConnection for ConnectionSvc {
 
     async fn write(&self, req: TReq<WriteRequest>) -> Result<TResp<Empty>, Status> {
         let m = req.into_inner();
-        self.mgr
+        self.manager
             .write_bytes(&m.id, &m.data)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -78,7 +78,7 @@ impl RemoteConnection for ConnectionSvc {
     }
 
     async fn stop(&self, req: TReq<ConnectionId>) -> Result<TResp<Empty>, Status> {
-        self.mgr
+        self.manager
             .stop_connection(&req.into_inner().id)
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -88,16 +88,17 @@ impl RemoteConnection for ConnectionSvc {
     async fn read(&self, req: TReq<ConnectionId>) -> Result<TResp<Self::ReadStream>, Status> {
         let id = req.into_inner().id;
         let mut rx = self
-            .mgr
+            .manager
             .subscribe(&id)
             .await
             .ok_or(Status::not_found("no such connection"))?;
 
         let (tx, rx_stream) = mpsc::channel::<Result<ByteChunk, Status>>(64);
+        // forward every chunk from ConnectionManager → gRPC stream
         tokio::spawn(async move {
             while let Ok(chunk) = rx.recv().await {
                 if tx.send(Ok(ByteChunk { data: chunk })).await.is_err() {
-                    break;
+                    break; // client hung up
                 }
             }
         });
@@ -113,7 +114,7 @@ impl RemoteConnection for ConnectionSvc {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let svc = RemoteConnectionServer::new(ConnectionSvc::new());
+    let server = RemoteConnectionServer::new(ConnectionService::new());
 
     let addr: SocketAddr = ([127, 0, 0, 1], 50051).into();
     info!("gRPC-Web listening on http://{addr}");
@@ -122,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .accept_http1(true) // gRPC-Web needs h1
         .layer(GrpcWebLayer::new()) // translate to gRPC-Web
         .layer(CorsLayer::permissive()) // allow browser calls
-        .add_service(svc)
+        .add_service(server)
         .serve(addr)
         .await?;
 

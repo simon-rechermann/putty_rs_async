@@ -32,7 +32,9 @@ impl ProfileStore {
             if !path.extension().is_some_and(|e| e == "json") {
                 continue;
             }
-            match fs::File::open(&path).and_then(|f| serde_json::from_reader(f).map_err(SerdeError::into)) {
+            match fs::File::open(&path)
+                .and_then(|f| serde_json::from_reader(f).map_err(SerdeError::into))
+            {
                 Ok(profile) => out.push(profile),
                 Err(e) => eprintln!("Warning: could not read {:?}: {e}", path),
             }

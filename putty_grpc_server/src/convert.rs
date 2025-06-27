@@ -4,12 +4,7 @@
 use putty_core::Profile;
 use tonic::Status;
 
-use crate::putty_interface::{
-    profile_req,
-    ProfileReq,
-    Serial,
-    Ssh,
-};
+use crate::putty_interface::{profile_req, ProfileReq, Serial, Ssh};
 
 /// core ▸ protobuf
 impl From<Profile> for ProfileReq {
@@ -40,7 +35,7 @@ impl From<Profile> for ProfileReq {
 
 /// protobuf ▸ core
 impl TryFrom<ProfileReq> for Profile {
-    type Error = Status;      // so `?` works inside tonic handlers
+    type Error = Status; // so `?` works inside tonic handlers
 
     fn try_from(m: ProfileReq) -> Result<Self, Self::Error> {
         let kind = m

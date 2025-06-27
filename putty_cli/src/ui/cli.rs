@@ -69,22 +69,32 @@ pub enum Protocol {
 pub enum StorageAction {
     List,
     SaveSerial {
-        #[arg(long)] name: String,
-        #[arg(long, default_value="/dev/pts/3")] port: String,
-        #[arg(long, default_value_t = 115200)] baud: u32,
+        #[arg(long)]
+        name: String,
+        #[arg(long, default_value = "/dev/pts/3")]
+        port: String,
+        #[arg(long, default_value_t = 115200)]
+        baud: u32,
     },
     SaveSsh {
-        #[arg(long)] name: String,
-        #[arg(long)] host: String,
-        #[arg(long, default_value_t = 22)] port: u16,
-        #[arg(long)] username: String,
-        #[arg(long, default_value="")] password: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        host: String,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        #[arg(long)]
+        username: String,
+        #[arg(long, default_value = "")]
+        password: String,
     },
     Delete {
-        #[arg(long)] name: String,
+        #[arg(long)]
+        name: String,
     },
     UseProfile {
-        #[arg(long)] profile: String,
+        #[arg(long)]
+        profile: String,
     },
 }
 
@@ -106,8 +116,8 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
         Protocol::Storage { action } => match action {
             // open by profile name
             StorageAction::UseProfile { profile } => {
-                let store = ProfileStore::new()
-                    .map_err(|e| ConnectionError::Other(e.to_string()))?;
+                let store =
+                    ProfileStore::new().map_err(|e| ConnectionError::Other(e.to_string()))?;
                 let preset = store
                     .list()?
                     .into_iter()
@@ -228,8 +238,7 @@ async fn run_cli_loop(
 }
 
 async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError> {
-    let store = ProfileStore::new()
-        .map_err(|e| ConnectionError::Other(e.to_string()))?;
+    let store = ProfileStore::new().map_err(|e| ConnectionError::Other(e.to_string()))?;
 
     match action {
         StorageAction::List => {

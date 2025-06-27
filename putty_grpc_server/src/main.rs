@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use putty_core::{connections::connection::Connection, ConnectionManager};
-use putty_core::{Profile, ProfileStore};  
+use putty_core::{Profile, ProfileStore};
 use tokio::sync::mpsc;
 use tonic::{
     transport::Server as TonicServer, // gRPC transport server
@@ -26,7 +26,7 @@ mod convert;
 #[derive(Clone)]
 struct ConnectionService {
     manager: ConnectionManager,
-    profile_store: ProfileStore, 
+    profile_store: ProfileStore,
 }
 
 impl ConnectionService {
@@ -62,7 +62,7 @@ impl RemoteConnection for ConnectionService {
                     s.user,
                     s.password,
                 ))
-            },
+            }
             create_request::Kind::Profile(profile_ref) => {
                 // 1. Look up the preset by name
                 let preset = self
@@ -84,11 +84,9 @@ impl RemoteConnection for ConnectionService {
                         username,
                         password,
                         ..
-                    } => Box::new(
-                        putty_core::connections::ssh::SshConnection::new(
-                            host, port, username, password,
-                        ),
-                    ),
+                    } => Box::new(putty_core::connections::ssh::SshConnection::new(
+                        host, port, username, password,
+                    )),
                 }
             }
         };
@@ -141,10 +139,7 @@ impl RemoteConnection for ConnectionService {
         )))
     }
 
-    async fn list_profiles(
-        &self,
-        _: Request<Empty>,
-    ) -> Result<Response<ProfileList>, Status> {
+    async fn list_profiles(&self, _: Request<Empty>) -> Result<Response<ProfileList>, Status> {
         let profiles = self
             .profile_store
             .list()
@@ -155,10 +150,7 @@ impl RemoteConnection for ConnectionService {
         Ok(Response::new(ProfileList { profiles }))
     }
 
-    async fn save_profile(
-        &self,
-        req: Request<ProfileReq>,
-    ) -> Result<Response<Empty>, Status> {
+    async fn save_profile(&self, req: Request<ProfileReq>) -> Result<Response<Empty>, Status> {
         let profile: Profile = req.into_inner().try_into()?;
         self.profile_store
             .save(&profile)
@@ -166,10 +158,7 @@ impl RemoteConnection for ConnectionService {
         Ok(Response::new(Empty {}))
     }
 
-    async fn delete_profile(
-        &self,
-        req: Request<ConnectionId>,
-    ) -> Result<Response<Empty>, Status> {
+    async fn delete_profile(&self, req: Request<ConnectionId>) -> Result<Response<Empty>, Status> {
         self.profile_store
             .delete(&req.into_inner().id)
             .map_err(|e| Status::internal(e.to_string()))?;

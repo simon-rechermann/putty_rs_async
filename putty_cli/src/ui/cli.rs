@@ -6,6 +6,7 @@ use putty_core::connections::serial::SerialConnection;
 use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 use putty_core::core::connection_manager::ConnectionManager;
+use putty_core::{Profile, ProfileStore};
 use std::io::{stdout, Write};
 use tokio::io::{self, AsyncReadExt};
 
@@ -82,6 +83,9 @@ pub enum StorageAction {
     Delete {
         #[arg(long)] name: String,
     },
+    UseProfile {
+        #[arg(long)] profile: String,
+    },
 }
 
 pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
@@ -99,9 +103,44 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
         } => {
             run_ssh_protocol(host, port, username, password, &connection_manager).await?;
         }
-        Protocol::Storage { action } => {
-            handle_storage_cmd(action).await?;
-        }
+        Protocol::Storage { action } => match action {
+            // open by profile name
+            StorageAction::UseProfile { profile } => {
+                let store = ProfileStore::new()
+                    .map_err(|e| ConnectionError::Other(e.to_string()))?;
+                let preset = store
+                    .list()?
+                    .into_iter()
+                    .find(|p| p.name() == profile)
+                    .ok_or_else(|| {
+                        ConnectionError::Other(format!("preset not found: {profile}"))
+                    })?;
+
+                match preset {
+                    Profile::Serial { port, baud, .. } => {
+                        run_serial_protocol(port, baud, &connection_manager).await?
+                    }
+                    Profile::Ssh {
+                        host,
+                        port,
+                        username,
+                        password,
+                        ..
+                    } => {
+                        run_ssh_protocol(host, port, username, password, &connection_manager)
+                            .await?
+                    }
+                }
+            }
+
+            // list / save / delete remain unchanged
+            StorageAction::List
+            | StorageAction::SaveSerial { .. }
+            | StorageAction::SaveSsh { .. }
+            | StorageAction::Delete { .. } => {
+                handle_storage_cmd(action).await?;
+            }
+        },
     }
     Ok(())
 }
@@ -189,8 +228,6 @@ async fn run_cli_loop(
 }
 
 async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError> {
-    use putty_core::{Profile, ProfileStore};
-
     let store = ProfileStore::new()
         .map_err(|e| ConnectionError::Other(e.to_string()))?;
 
@@ -203,14 +240,27 @@ async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError
         StorageAction::SaveSerial { name, port, baud } => {
             store.save(&Profile::Serial { name, port, baud })?;
         }
-        StorageAction::SaveSsh { name, host, port, username, password } => {
-            store.save(&Profile::Ssh { name, host, port, username, password })?;
+        StorageAction::SaveSsh {
+            name,
+            host,
+            port,
+            username,
+            password,
+        } => {
+            store.save(&Profile::Ssh {
+                name,
+                host,
+                port,
+                username,
+                password,
+            })?;
         }
         StorageAction::Delete { name } => {
             if !store.delete(&name)? {
                 eprintln!("No such profile: {name}");
             }
         }
+        StorageAction::UseProfile { .. } => unreachable!(), // handled above
     }
     Ok(())
 }

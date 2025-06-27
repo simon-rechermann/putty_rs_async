@@ -62,6 +62,34 @@ impl RemoteConnection for ConnectionService {
                     s.user,
                     s.password,
                 ))
+            },
+            create_request::Kind::Profile(profile_ref) => {
+                // 1. Look up the preset by name
+                let preset = self
+                    .profile_store
+                    .list()
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .into_iter()
+                    .find(|p| p.name() == profile_ref.name)
+                    .ok_or_else(|| Status::not_found("profile not found"))?;
+
+                // 2. Turn that preset into the concrete connection
+                match preset {
+                    putty_core::Profile::Serial { port, baud, .. } => Box::new(
+                        putty_core::connections::serial::SerialConnection::new(port, baud),
+                    ),
+                    putty_core::Profile::Ssh {
+                        host,
+                        port,
+                        username,
+                        password,
+                        ..
+                    } => Box::new(
+                        putty_core::connections::ssh::SshConnection::new(
+                            host, port, username, password,
+                        ),
+                    ),
+                }
             }
         };
 

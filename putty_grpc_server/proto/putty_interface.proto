@@ -15,6 +15,7 @@ message CreateRequest {
   oneof kind {
     Serial serial = 1;
     Ssh    ssh    = 2;
+    ProfileName profile = 3; 
   }
 }
 
@@ -33,6 +34,8 @@ message ProfileReq {
     Ssh    ssh    = 3;
   }
 }
+
+message ProfileName { string name = 1; }
 
 message ProfileList { repeated ProfileReq profiles = 1; }
 

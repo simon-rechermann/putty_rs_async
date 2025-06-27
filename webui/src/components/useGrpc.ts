@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
-import { createPromiseClient }    from "@connectrpc/connect";
+import { createClient }    from "@connectrpc/connect";
 
 import {
   CreateRequest, Serial, Ssh, WriteRequest,
-  ConnectionId,
+  ConnectionId, ProfileReq, ProfileName, Empty,
 } from "../generated/putty_interface_pb.ts";
 import { RemoteConnection } from "../generated/putty_interface_connect.ts";
 
@@ -14,13 +14,18 @@ import type { XtermHandle } from "../TerminalPane";
 export type Mode = "serial" | "ssh";
 export interface SerialCfg { port: string; baud: number }
 export interface SshCfg    { host: string; port: number; user: string; password: string }
+export type ListProfilesFn   = () => Promise<ProfileReq[]>;
+export type SaveSerialFn     = (name:string,cfg:SerialCfg)=>Promise<void>;
+export type SaveSshFn        = (name:string,cfg:SshCfg)   =>Promise<void>;
+export type DeleteProfileFn  = (name:string)=>Promise<void>;
+export type ConnectProfileFn = (name: string) => Promise<string | undefined>;
 
 /* ---------- gRPC-Web transport ---------------------------------- */
 const transport = createGrpcWebTransport({
   baseUrl: window.location.origin,      // :5173 (dev)  | :50051 (prod)
   useBinaryFormat: true,
 });
-const rpc = createPromiseClient(RemoteConnection, transport);
+const rpc = createClient(RemoteConnection, transport);
 
 /* ---------- hook ------------------------------------------------ */
 export default function useGrpc() {
@@ -46,38 +51,11 @@ export default function useGrpc() {
 
   /* connect / reconnect ------------------------------------------ */
   async function connect(mode: Mode, cfg: SerialCfg | SshCfg) {
-    if (connecting || connId) return;
-    setConnecting(true);
-    termRef.current?.term.clear();
-
-    /* --- build CreateRequest one-of ----------------------------- */
     const req = new CreateRequest(mode === "serial"
       ? { kind: { case: "serial", value: new Serial(cfg as SerialCfg) } }
       : { kind: { case: "ssh",    value: new Ssh   (cfg as SshCfg   ) } }
     );
-
-    try {
-      /* unary RPC ------------------------------------------------ */
-      const { id } = await rpc.createRemoteConnection(req) as ConnectionId;
-      setConnId(id);
-      setConnecting(false);
-      attachKeyHandler(id);
-
-      /* async reader (doesn't block UI) -------------------------- */
-      (async () => {
-        for await (const chunk of rpc.read(new ConnectionId({ id }))) {
-          termRef.current?.term.write(chunk.data);
-        }
-        setConnId(null);                          // stream closed
-      })().catch(console.error);
-
-      return id;
-    } catch (e) {
-      termRef.current?.term.writeln(`\r\n\x1b[31m*** ${e}\x1b[0m\r\n`);
-      setConnId(null);
-      setConnecting(false);
-      throw e;
-    }
+    return openRequest(req);
   }
 
   /* low-level write helper --------------------------------------- */
@@ -93,5 +71,66 @@ export default function useGrpc() {
     keyDispRef.current?.dispose();
   }
 
-  return { connId, connecting, connect, write, stop, termRef };
+  async function listProfiles() {
+    const { profiles } = await rpc.listProfiles(new Empty());
+    return profiles;
+  }
+
+  async function saveSerial(name:string,cfg:SerialCfg){
+    await rpc.saveProfile(new ProfileReq({
+      name,
+      kind:{ case:"serial", value:new Serial(cfg) }
+    }));
+  }
+
+  async function saveSsh(name:string,cfg:SshCfg){
+    await rpc.saveProfile(new ProfileReq({
+      name,
+      kind:{ case:"ssh", value:new Ssh(cfg) }
+    }));
+  }
+
+  async function deleteProfile(name:string){
+    await rpc.deleteProfile(new ConnectionId({ id:name }));
+  }
+
+  async function connectProfile(name: string) {
+    const req = new CreateRequest({
+      kind: { case: "profile", value: new ProfileName({ name }) },
+    });
+    return openRequest(req);
+  }
+
+  async function openRequest(req: CreateRequest) {
+    if (connecting || connId) return;
+    setConnecting(true);
+    termRef.current?.term.clear();
+
+    try {
+      const { id } = await rpc.createRemoteConnection(req) as ConnectionId;
+      setConnId(id);
+      setConnecting(false);
+      attachKeyHandler(id);
+
+      /* start reader --------------------------------------------------- */
+      (async () => {
+        for await (const chunk of rpc.read(new ConnectionId({ id }))) {
+          termRef.current?.term.write(chunk.data);
+        }
+        setConnId(null);                      // server closed stream
+      })().catch(console.error);
+
+      return id;
+    } catch (e) {
+      termRef.current?.term.writeln(`\r\n\x1b[31m*** ${e}\x1b[0m\r\n`);
+      setConnId(null);
+      setConnecting(false);
+      throw e;
+    }
+  }
+
+return {
+  connId, connecting, connect, write, stop, termRef,
+  listProfiles, saveSerial, saveSsh, deleteProfile, connectProfile,
+};
 }

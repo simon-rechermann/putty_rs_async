@@ -1,0 +1,12 @@
+.modal-overlay{
+  position:fixed;inset:0;background:#000a;display:flex;justify-content:center;align-items:center;
+}
+.modal{
+  background:#1e1e1e;border:1px solid #444;padding:16px 20px;border-radius:8px;min-width:300px;
+}
+.modal h2,h3{margin:0 0 8px 0}
+.profile-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.profile-table th,.profile-table td{padding:4px;border-bottom:1px solid #333;text-align:left}
+.profile-table td.actions{white-space:nowrap}
+.error{color:#e33}
+.close-btn{margin-top:8px}

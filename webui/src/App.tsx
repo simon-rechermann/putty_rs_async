@@ -5,6 +5,7 @@ import useGrpc, {
 
 import Toolbar       from "./components/Toolbar";
 import TerminalPane  from "./TerminalPane";
+import ProfilesModal from "./components/ProfilesModal";
 
 import "./App.css";
 
@@ -17,8 +18,12 @@ export default function App() {
                                                            user:"user", password:"" });
 
   /* hook: gRPC connection + terminal handle -------------------- */
-  const { connId, connecting, connect, termRef }
-          = useGrpc();
+  const {
+    connId, connecting, connect, termRef,
+    listProfiles, saveSerial, saveSsh, deleteProfile, connectProfile,
+  } = useGrpc();
+  /* modal state for profiles management ----------------------- */
+  const [showProfiles, setShowProfiles] = useState(false);
 
   return (
     <div className="app">
@@ -29,11 +34,24 @@ export default function App() {
         connecting={connecting}
         connected={!!connId}
         connect={connect}
+        openProfiles={() => setShowProfiles(true)}
       />
 
       <div className="term-wrapper">
         <TerminalPane ref={termRef}/>
       </div>
+      <ProfilesModal
+        show={showProfiles}
+        onClose={() => setShowProfiles(false)}
+        currentMode={mode}
+        currentSerial={serialCfg}
+        currentSsh={sshCfg}
+        listProfiles={listProfiles}
+        saveSerial={saveSerial}
+        saveSsh={saveSsh}
+        deleteProfile={deleteProfile}
+        connectProfile={connectProfile}
+      />      
     </div>
   );
 }

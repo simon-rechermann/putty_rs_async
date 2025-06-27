@@ -6,6 +6,9 @@ service RemoteConnection {
   rpc Write            (WriteRequest)  returns (Empty);
   rpc Stop             (ConnectionId)  returns (Empty);
   rpc Read             (ConnectionId)  returns (stream ByteChunk);
+  rpc ListProfiles  (Empty)   returns (ProfileList);
+  rpc SaveProfile   (ProfileReq) returns (Empty);
+  rpc DeleteProfile (ConnectionId) returns (Empty);
 }
 
 message CreateRequest {
@@ -22,3 +25,14 @@ message ConnectionId { string id = 1; }
 message WriteRequest { string id = 1; bytes data = 2; }
 message ByteChunk    { bytes data = 1; }
 message Empty        {}
+
+message ProfileReq {
+  string name = 1;
+  oneof kind {
+    Serial serial = 2;
+    Ssh    ssh    = 3;
+  }
+}
+
+message ProfileList { repeated ProfileReq profiles = 1; }
+

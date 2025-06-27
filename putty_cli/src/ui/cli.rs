@@ -56,6 +56,32 @@ pub enum Protocol {
         #[arg(long, default_value = "")]
         password: String,
     },
+    /// Manage saved connection presets.
+    Storage {
+        #[command(subcommand)]
+        action: StorageAction,
+    },
+}
+
+/// Actions in `putty_rs storage <action>`
+#[derive(Subcommand, Debug)]
+pub enum StorageAction {
+    List,
+    SaveSerial {
+        #[arg(long)] name: String,
+        #[arg(long, default_value="/dev/pts/3")] port: String,
+        #[arg(long, default_value_t = 115200)] baud: u32,
+    },
+    SaveSsh {
+        #[arg(long)] name: String,
+        #[arg(long)] host: String,
+        #[arg(long, default_value_t = 22)] port: u16,
+        #[arg(long)] username: String,
+        #[arg(long, default_value="")] password: String,
+    },
+    Delete {
+        #[arg(long)] name: String,
+    },
 }
 
 pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
@@ -72,6 +98,9 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
             password,
         } => {
             run_ssh_protocol(host, port, username, password, &connection_manager).await?;
+        }
+        Protocol::Storage { action } => {
+            handle_storage_cmd(action).await?;
         }
     }
     Ok(())
@@ -156,5 +185,32 @@ async fn run_cli_loop(
     }
     let _ = connection_manager.stop_connection(&id).await;
     info!("Terminal mode restored.");
+    Ok(())
+}
+
+async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError> {
+    use putty_core::{Profile, ProfileStore};
+
+    let store = ProfileStore::new()
+        .map_err(|e| ConnectionError::Other(e.to_string()))?;
+
+    match action {
+        StorageAction::List => {
+            for p in store.list()? {
+                println!("{:?}", p);
+            }
+        }
+        StorageAction::SaveSerial { name, port, baud } => {
+            store.save(&Profile::Serial { name, port, baud })?;
+        }
+        StorageAction::SaveSsh { name, host, port, username, password } => {
+            store.save(&Profile::Ssh { name, host, port, username, password })?;
+        }
+        StorageAction::Delete { name } => {
+            if !store.delete(&name)? {
+                eprintln!("No such profile: {name}");
+            }
+        }
+    }
     Ok(())
 }

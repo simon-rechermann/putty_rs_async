@@ -90,15 +90,27 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
+
           sudo apt-get update -y
           sudo apt-get install -y \
               pkg-config libudev-dev libdbus-1-dev gnome-keyring dbus-user-session
-          # start a private D-Bus session
-          export $(dbus-launch)
-          # start gnome-keyring (secrets component only) in this session
-          eval "$(gnome-keyring-daemon --start --components=secrets --sh)"
-          # run the whole test suite now the key-ring backend is available
+
+          # 1. start a *private* D-Bus session for this job
+          eval "$(dbus-launch --sh-syntax)"
+
+          # 2. launch gnome-keyring; **capture & eval** its export snippet
+          eval "$(gnome-keyring-daemon --start --components=secrets)"
+
+          # (optional) quick probe – remove if noisy
+          python - <<'PY'
+          import keyring, sys
+          keyring.set_password("putty_rs", "ci-probe", "ok")
+          assert keyring.get_password("putty_rs", "ci-probe") == "ok"
+          keyring.delete_password("putty_rs", "ci-probe")
+          PY
+
+          # 3. run the Rust tests
           cargo test --all
 
       # -------- macOS / Windows: just run tests ----------------------

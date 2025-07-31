@@ -126,8 +126,7 @@ impl ProfileStore {
                             let id = keyring_id.clone().unwrap_or_else(|| key_id(name));
                             match open_entry(&id)?.get_password() {
                                 Ok(sec) => {
-                                    *password =
-                                        sec.trim_end_matches(['\r', '\n']).to_owned();
+                                    *password = sec.trim_end_matches(['\r', '\n']).to_owned();
                                 }
                                 Err(KrError::NoEntry) => {
                                     debug!("no secret stored under id='{id}'");

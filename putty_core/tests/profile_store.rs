@@ -14,15 +14,15 @@ use uuid::Uuid;
 #[test]
 fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
     /* ── isolate JSON files into a temp config dir ─────────────── */
-    let tmp_cfg = TempDir::new()?;                      // auto-deleted
+    let tmp_cfg = TempDir::new()?; // auto-deleted
     env::set_var("XDG_CONFIG_HOME", tmp_cfg.path());
 
     /* ── unique profile / key id ───────────────────────────────── */
     let profile_name = format!("probe-{}", Uuid::new_v4());
-    let key_id       = format!("putty_rs:{profile_name}");
-    let pw           = "s3cr3t!";
+    let key_id = format!("putty_rs:{profile_name}");
+    let pw = "s3cr3t!";
 
-    let store = ProfileStore::new()?;                   // uses tmp path
+    let store = ProfileStore::new()?; // uses tmp path
 
     /* ── save profile ─────────────────────────────────────────── */
     store.save(&Profile::Ssh {
@@ -43,15 +43,15 @@ fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
     let doc: Value = serde_json::from_str(&fs::read_to_string(&json_path)?)?;
     match &doc["password"] {
         Value::String(s) => assert!(s.is_empty(), "password leaked into JSON"),
-        Value::Null      => {},
-        other            => panic!("unexpected JSON value {other:?}"),
+        Value::Null => {}
+        other => panic!("unexpected JSON value {other:?}"),
     }
 
     /* ── secret in key-ring ────────────────────────────────────── */
     assert_eq!(Entry::new("putty_rs", &key_id)?.get_password()?, pw);
 
     /* ── list() restores it ───────────────────────────────────── */
-    let profiles = store.list()?;                       // keep Vec alive
+    let profiles = store.list()?; // keep Vec alive
     let restored_pw = match &profiles[..] {
         [Profile::Ssh { password, .. }] => password,
         other => panic!("unexpected list content {other:?}"),

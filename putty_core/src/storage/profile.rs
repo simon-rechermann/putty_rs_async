@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 /// A user-named connection preset.
 ///
 /// For SSH, the password is **never** serialized; instead we keep a reference
@@ -22,7 +21,7 @@ pub enum Profile {
         port: u16,
         username: String,
         #[serde(default, skip_serializing)]
-        password: String,            // do not save this in json
+        password: String, // do not save this in json
         keyring_id: Option<String>,
     },
 }

@@ -4,7 +4,7 @@
 //!   **service** “`putty_rs`” and user  **`putty_rs:<profile-name>`**..
 //! * Serial profiles contain no secret.
 
-use std::{fs, io, path::PathBuf, path::Path};
+use std::{fs, io, path::Path, path::PathBuf};
 
 use directories::ProjectDirs;
 use keyring::{Entry, Error as KrError};

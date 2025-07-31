@@ -38,7 +38,7 @@ async fn spawn_socat_pair() -> anyhow::Result<(PathBuf, PathBuf, Child)> {
     let mut pty_paths: Vec<PathBuf> = Vec::with_capacity(2);
 
     while let Some(line) = stderr_lines.next_line().await? {
-        log::debug!("socat: {}", line);
+        log::debug!("socat: {line}");
         if let Some(caps) = virtual_device_regex.captures(&line) {
             pty_paths.push(PathBuf::from(&caps[1]));
             if pty_paths.len() == 2 {
@@ -66,11 +66,7 @@ async fn virtual_serial_roundtrip() {
     let (left_pty_path, right_pty_path, mut socat_child) =
         spawn_socat_pair().await.expect("failed to spawn socat");
 
-    log::info!(
-        "Using virtual ports: LEFT = {:?}, RIGHT = {:?}",
-        left_pty_path,
-        right_pty_path
-    );
+    log::info!("Using virtual ports: LEFT = {left_pty_path:?}, RIGHT = {right_pty_path:?}");
 
     // ── Helper task: echo back everything read on the RIGHT port ──────────────
     tokio::spawn({

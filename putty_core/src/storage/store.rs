@@ -29,7 +29,7 @@ fn key_id(name: &str) -> String {
 /// open key-ring entry (logs every access so we see what happens)
 fn open_entry(id: &str) -> io::Result<Entry> {
     debug!("key-ring open  service='putty_rs'  user='{id}'");
-    Entry::new("putty_rs", id).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+    Entry::new("putty_rs", id).map_err(io::Error::other)
 }
 
 /// compute `<config>/profiles/<name>.json`
@@ -43,7 +43,7 @@ impl ProfileStore {
     /// Locate (or create) the *profiles* directory under the user’s config dir.
     pub fn new() -> io::Result<Self> {
         let dir = ProjectDirs::from("", "", "putty_rs")
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no config dir"))?
+            .ok_or_else(|| io::Error::other("no config dir"))?
             .config_dir()
             .join("profiles");
         fs::create_dir_all(&dir)?;
@@ -75,7 +75,7 @@ impl ProfileStore {
                 if !password.is_empty() {
                     open_entry(&id)?
                         .set_password(password)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                        .map_err(io::Error::other)?;
                 }
 
                 // clone WITHOUT the secret

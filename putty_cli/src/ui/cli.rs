@@ -14,7 +14,7 @@ use tokio::io::{self, AsyncReadExt};
 /// This disables line-buffering and echo on all supported platforms.
 fn set_raw_mode() -> Result<(), ConnectionError> {
     enable_raw_mode()
-        .map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {}", e)))
+        .map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {e}")))
 }
 
 /// Restore normal terminal mode.
@@ -160,7 +160,7 @@ async fn run_serial_protocol(
     baud: u32,
     connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
-    info!("Opening serial port: {} at {} baud", port, baud);
+    info!("Opening serial port: {port} at {baud} baud");
     let conn = SerialConnection::new(port.clone(), baud);
     run_cli_loop(connection_manager, port, Box::new(conn)).await
 }
@@ -172,10 +172,7 @@ async fn run_ssh_protocol(
     password: String,
     connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
-    info!(
-        "Connecting to SSH server {}:{} as user {}",
-        host, port, username
-    );
+    info!("Connecting to SSH server {host}:{port} as user {username}");
     let conn = SshConnection::new(host.clone(), port, username, password);
     run_cli_loop(connection_manager, host, Box::new(conn)).await
 }
@@ -243,7 +240,7 @@ async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError
     match action {
         StorageAction::List => {
             for p in store.list()? {
-                println!("{:?}", p);
+                println!("{p:?}");
             }
         }
         StorageAction::SaveSerial { name, port, baud } => {

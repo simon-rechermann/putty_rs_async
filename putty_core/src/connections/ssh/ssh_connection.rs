@@ -92,7 +92,7 @@ impl Connection for SshConnection {
             let tcp = match TcpStream::connect(&addr) {
                 Ok(t) => t,
                 Err(e) => {
-                    error!("TCP connect error: {}", e);
+                    error!("TCP connect error: {e}");
                     return;
                 }
             };
@@ -103,13 +103,13 @@ impl Connection for SshConnection {
             let mut session = match Session::new() {
                 Ok(s) => s,
                 Err(e) => {
-                    error!("Failed to create SSH session: {}", e);
+                    error!("Failed to create SSH session: {e}");
                     return;
                 }
             };
             session.set_tcp_stream(tcp);
             if let Err(e) = session.handshake() {
-                error!("Handshake error: {}", e);
+                error!("Handshake error: {e}");
                 return;
             }
 
@@ -128,7 +128,7 @@ impl Connection for SshConnection {
             };
 
             if let Err(e) = auth_res {
-                error!("Authentication error: {}", e);
+                error!("Authentication error: {e}");
                 return;
             }
             if !session.authenticated() {
@@ -139,7 +139,7 @@ impl Connection for SshConnection {
             let mut channel = match session.channel_session() {
                 Ok(c) => c,
                 Err(e) => {
-                    error!("Channel error: {}", e);
+                    error!("Channel error: {e}");
                     return;
                 }
             };
@@ -162,7 +162,7 @@ impl Connection for SshConnection {
                 // outgoing
                 while let Ok(pkt) = write_rx.try_recv() {
                     if let Err(e) = channel.write_all(&pkt) {
-                        error!("SSH write error: {}", e);
+                        error!("SSH write error: {e}");
                         return;
                     }
                     channel.flush().ok();
@@ -179,7 +179,7 @@ impl Connection for SshConnection {
 
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => { /* WouldBlock */ }
                     Err(e) => {
-                        error!("SSH read error: {}", e);
+                        error!("SSH read error: {e}");
                         return;
                     }
                 }

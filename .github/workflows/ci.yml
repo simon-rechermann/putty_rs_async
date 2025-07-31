@@ -65,46 +65,46 @@ jobs:
           components: clippy
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
-# Unit + regular integration tests  (NO `hw-tests` feature)
-tests:
-  strategy:
-    matrix:
-      os: [ubuntu-latest, macos-latest, windows-latest]
-  runs-on: ${{ matrix.os }}
-  name: Tests (${{ matrix.os }})
-  steps:
-    - uses: actions/checkout@v4
+  # Integration tests  (NO `hw-tests` feature)
+  tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    name: Tests (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@v4
 
-    # -------- toolchain / protoc (identical for every OS) ----------
-    - uses: arduino/setup-protoc@v3
-      with:
-        version: ${{ env.PROTOC_VERSION }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # -------- toolchain / protoc (identical for every OS) ----------
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
-    # -------- Linux: install deps, start key-ring, run tests -------
-    - name: Linux – deps + key-ring + tests
-      if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        set -euo pipefail
-        sudo apt-get update -y
-        sudo apt-get install -y \
-             pkg-config libudev-dev libdbus-1-dev gnome-keyring dbus-user-session
-        # start a private D-Bus session
-        export $(dbus-launch)
-        # start gnome-keyring (secrets component only) in this session
-        eval "$(gnome-keyring-daemon --start --components=secrets --sh)"
-        # run the whole test suite – now the key-ring backend is available
-        cargo test --all
+      # -------- Linux: install deps, start key-ring, run tests -------
+      - name: Linux deps + key-ring + tests
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y \
+              pkg-config libudev-dev libdbus-1-dev gnome-keyring dbus-user-session
+          # start a private D-Bus session
+          export $(dbus-launch)
+          # start gnome-keyring (secrets component only) in this session
+          eval "$(gnome-keyring-daemon --start --components=secrets --sh)"
+          # run the whole test suite now the key-ring backend is available
+          cargo test --all
 
-    # -------- macOS / Windows: just run tests ----------------------
-    - name: Run tests
-      if: runner.os != 'Linux'
-      run: cargo test --all
+      # -------- macOS / Windows: just run tests ----------------------
+      - name: Run tests
+        if: runner.os != 'Linux'
+        run: cargo test --all
 
   hw_tests:
     strategy:

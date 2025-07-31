@@ -14,7 +14,7 @@ use uuid::Uuid;
 #[test]
 fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
     /* ── sandbox ------------------------------------------------------ */
-    let sandbox = TempDir::new()?;                     // removed automatically
+    let sandbox = TempDir::new()?; // removed automatically
     let profiles_dir = sandbox.path().join("profiles");
     let store = ProfileStore::in_dir(profiles_dir.clone())?;
 

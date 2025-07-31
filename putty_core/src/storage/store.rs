@@ -29,7 +29,7 @@ impl ProfileStore {
         let mut out = Vec::new();
         for entry in fs::read_dir(&self.dir)? {
             let path = entry?.path();
-            if !path.extension().is_some_and(|e| e == "json") {
+            if path.extension().is_none_or(|e| e != "json") {
                 continue;
             }
             match fs::File::open(&path)

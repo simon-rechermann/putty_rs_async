@@ -4,7 +4,7 @@
 //!   **service** “`putty_rs`” and user  **`putty_rs:<profile-name>`**..
 //! * Serial profiles contain no secret.
 
-use std::{fs, io, path::PathBuf};
+use std::{fs, io, path::PathBuf, path::Path};
 
 use directories::ProjectDirs;
 use keyring::{Entry, Error as KrError};
@@ -33,7 +33,7 @@ fn open_entry(id: &str) -> io::Result<Entry> {
 }
 
 /// compute `<config>/profiles/<name>.json`
-fn json_path(dir: &PathBuf, name: &str) -> PathBuf {
+fn json_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{name}.json"))
 }
 

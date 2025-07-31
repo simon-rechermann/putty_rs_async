@@ -20,6 +20,7 @@ impl From<Profile> for ProfileReq {
                 port,
                 username,
                 password,
+                keyring_id: _, // not needed here
             } => ProfileReq {
                 name,
                 kind: Some(profile_req::Kind::Ssh(Ssh {
@@ -53,6 +54,7 @@ impl TryFrom<ProfileReq> for Profile {
                 port: s.port as u16,
                 username: s.user,
                 password: s.password,
+                keyring_id: None, // not needed in protobuf
             }),
         }
     }

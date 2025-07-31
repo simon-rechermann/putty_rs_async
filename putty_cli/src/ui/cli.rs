@@ -262,6 +262,7 @@ async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError
                 port,
                 username,
                 password,
+                keyring_id: None, // not needed here
             })?;
         }
         StorageAction::Delete { name } => {

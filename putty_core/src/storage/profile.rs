@@ -1,9 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+
 /// A user-named connection preset.
 ///
-/// The enum is `#[serde(tag = "kind")]` so JSON looks like:
-/// `{ "name":"dbg", "kind":"Serial", "port":"/dev/ttyUSB0", "baud":115200 }`
+/// For SSH, the password is **never** serialized; instead we keep a reference
+/// (`keyring_id`) to the OS keyring entry that holds the secret.
+///
+/// `{ "kind":"Ssh", "name":"prodbox", "host":"10.0.0.5", ...,
+///    "keyring_id":"putty_rs:prodbox" }`
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Profile {
@@ -17,7 +21,9 @@ pub enum Profile {
         host: String,
         port: u16,
         username: String,
-        password: String,
+        #[serde(default, skip_serializing)]
+        password: String,            // do not save this in json
+        keyring_id: Option<String>,
     },
 }
 

@@ -23,6 +23,8 @@ cargo run --bin cli -- --help
 sudo apt-get install libssl-dev
 # For tonic of you want to build the gRPC server
 sudo apt install protobuf-compiler
+# For keyring crate -> storage of password in profiles
+sudo apt install libdbus-1-dev pkg-config
 ```
 
 ## Test serial connection with putty or second putty-rs instance as other end of virtual serial device

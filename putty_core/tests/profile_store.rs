@@ -3,7 +3,7 @@
 //! `XDG_CONFIG_HOME` to a temporary directory, so existing user profiles
 //! never interfere.
 
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use keyring::{Entry, Error as KrError};
 use putty_core::storage::{profile::Profile, store::ProfileStore};
@@ -13,18 +13,17 @@ use uuid::Uuid;
 
 #[test]
 fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
-    /* ── isolate JSON files into a temp config dir ─────────────── */
-    let tmp_cfg = TempDir::new()?; // auto-deleted
-    env::set_var("XDG_CONFIG_HOME", tmp_cfg.path());
+    /* ── sandbox ------------------------------------------------------ */
+    let sandbox = TempDir::new()?;                     // removed automatically
+    let profiles_dir = sandbox.path().join("profiles");
+    let store = ProfileStore::in_dir(profiles_dir.clone())?;
 
-    /* ── unique profile / key id ───────────────────────────────── */
+    /* ── unique profile/key id --------------------------------------- */
     let profile_name = format!("probe-{}", Uuid::new_v4());
     let key_id = format!("putty_rs:{profile_name}");
     let pw = "s3cr3t!";
 
-    let store = ProfileStore::new()?; // uses tmp path
-
-    /* ── save profile ─────────────────────────────────────────── */
+    /* ── save -------------------------------------------------------- */
     store.save(&Profile::Ssh {
         name: profile_name.clone(),
         host: "host".into(),
@@ -34,12 +33,8 @@ fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
         keyring_id: None,
     })?;
 
-    /* ── JSON must not contain the secret ─────────────────────── */
-    let json_path: PathBuf = tmp_cfg
-        .path()
-        .join("putty_rs")
-        .join("profiles")
-        .join(format!("{profile_name}.json"));
+    /* ── JSON must NOT contain the secret --------------------------- */
+    let json_path: PathBuf = profiles_dir.join(format!("{profile_name}.json"));
     let doc: Value = serde_json::from_str(&fs::read_to_string(&json_path)?)?;
     match &doc["password"] {
         Value::String(s) => assert!(s.is_empty(), "password leaked into JSON"),
@@ -47,18 +42,18 @@ fn profile_store_roundtrip_default_backend() -> anyhow::Result<()> {
         other => panic!("unexpected JSON value {other:?}"),
     }
 
-    /* ── secret in key-ring ────────────────────────────────────── */
+    /* ── secret must be in the key-ring ----------------------------- */
     assert_eq!(Entry::new("putty_rs", &key_id)?.get_password()?, pw);
 
-    /* ── list() restores it ───────────────────────────────────── */
-    let profiles = store.list()?; // keep Vec alive
-    let restored_pw = match &profiles[..] {
+    /* ── list() must restore the secret ----------------------------- */
+    let profiles_vec = store.list()?; // keep Vec alive
+    let restored_pw = match &profiles_vec[..] {
         [Profile::Ssh { password, .. }] => password,
         other => panic!("unexpected list content {other:?}"),
     };
     assert_eq!(restored_pw, pw);
 
-    /* ── delete cleans everything ─────────────────────────────── */
+    /* ── delete cleans everything ----------------------------------- */
     assert!(store.delete(&profile_name)?);
     assert!(store.list()?.is_empty());
     assert!(!json_path.exists());

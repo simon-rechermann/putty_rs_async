@@ -32,7 +32,7 @@ fn open_entry(id: &str) -> io::Result<Entry> {
     Entry::new("putty_rs", id).map_err(io::Error::other)
 }
 
-/// compute `<config>/profiles/<name>.json`
+/// Build `<dir>/<name>.json`.
 fn json_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{name}.json"))
 }
@@ -157,7 +157,9 @@ impl ProfileStore {
         }
     }
 
-    pub fn dir(&self) -> &PathBuf {
-        &self.dir
+    /// Create a store rooted at an explicit directory – useful for **tests**.
+    pub fn in_dir(dir: PathBuf) -> io::Result<Self> {
+        fs::create_dir_all(&dir)?;
+        Ok(Self { dir })
     }
 }

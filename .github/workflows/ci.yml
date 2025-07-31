@@ -79,7 +79,13 @@ jobs:
         name: Linux deps
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y pkg-config libudev-dev libdbus-1-dev
+          sudo apt-get install -y pkg-config libudev-dev libdbus-1-dev gnome-keyring dbus-user-session
+          # launch a DBus session for the job
+          eval "$(dbus-launch --sh-syntax)"
+          export DBUS_SESSION_BUS_ADDRESS
+          # start the key-ring daemon (secrets component only)
+          /usr/bin/gnome-keyring-daemon --start --components=secrets --foreground &
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
 
       - uses: arduino/setup-protoc@v3
         with:

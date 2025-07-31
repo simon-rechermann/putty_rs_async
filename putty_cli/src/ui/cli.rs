@@ -13,8 +13,7 @@ use tokio::io::{self, AsyncReadExt};
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
 fn set_raw_mode() -> Result<(), ConnectionError> {
-    enable_raw_mode()
-        .map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {e}")))
+    enable_raw_mode().map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {e}")))
 }
 
 /// Restore normal terminal mode.

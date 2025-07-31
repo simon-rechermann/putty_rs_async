@@ -12,13 +12,19 @@ interface Props {
   connecting: boolean;
   connected:  boolean;
   connect: (mode: Mode, cfg: SerialCfg|SshCfg) => void;
-  openProfiles: () => void; 
+  stop: () => void;                     /* NEW */
+  openProfiles: () => void;
 }
 
 /* presentational toolbar -------------------------------------------------- */
 export default function Toolbar(p: Props) {
-  const { mode, setMode, serialCfg, setSerialCfg,
-          sshCfg, setSshCfg, connecting, connected, connect, openProfiles } = p;
+  const {
+    mode, setMode,
+    serialCfg, setSerialCfg,
+    sshCfg,    setSshCfg,
+    connecting, connected,
+    connect, stop, openProfiles,
+  } = p;
 
   return (
     <div className="toolbar">
@@ -61,12 +67,15 @@ export default function Toolbar(p: Props) {
         </label>
       </>}
 
-      <button
-        onClick={()=>connect(mode, mode==="serial"?serialCfg:sshCfg)}
-        disabled={connecting||connected}
-      >
-        {connecting ? "connecting…" : connected ? "connected" : "connect"}
-      </button>
+      {connected
+        ? <button onClick={stop}>disconnect</button>
+        : <button
+            onClick={()=>connect(mode, mode==="serial"?serialCfg:sshCfg)}
+            disabled={connecting}
+          >
+            {connecting ? "connecting…" : "connect"}
+          </button>
+      }
       <button onClick={openProfiles}>profiles…</button>
     </div>
   );

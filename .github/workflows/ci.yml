@@ -92,23 +92,22 @@ jobs:
         run: |
           set -euxo pipefail
 
+          # ── build & D-Bus/Keyring runtime deps ─────────────────────────
           sudo apt-get update -y
           sudo apt-get install -y \
-              pkg-config libudev-dev libdbus-1-dev gnome-keyring dbus-user-session
+              pkg-config libudev-dev libdbus-1-dev \
+              dbus-x11 dbus-user-session gnome-keyring
 
-          # 1. start a *private* D-Bus session for this job
-          eval "$(dbus-launch --sh-syntax)"
+          # GitHub runners miss /run/user/$UID – create & export the runtime dir
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          sudo mkdir -p "$XDG_RUNTIME_DIR"
+          sudo chown "$(id -u):$(id -g)" "$XDG_RUNTIME_DIR"
 
-          # 2. launch gnome-keyring; **capture & eval** its export snippet
+          # 1. private D-Bus session for this job
+          eval "$(dbus-launch --exit-with-session --sh-syntax)"
+
+          # 2. start gnome-keyring (secrets component only) and export its vars
           eval "$(gnome-keyring-daemon --start --components=secrets)"
-
-          # (optional) quick probe – remove if noisy
-          python - <<'PY'
-          import keyring, sys
-          keyring.set_password("putty_rs", "ci-probe", "ok")
-          assert keyring.get_password("putty_rs", "ci-probe") == "ok"
-          keyring.delete_password("putty_rs", "ci-probe")
-          PY
 
           # 3. run the Rust tests
           cargo test --all

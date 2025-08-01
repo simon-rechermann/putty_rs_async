@@ -97,20 +97,21 @@ jobs:
               pkg-config libudev-dev libdbus-1-dev \
               gnome-keyring dbus-x11
 
-          # gnome-keyring expects /run/user/$UID – create it in the container
+          # gnome-keyring still prefers /run/user/$UID
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           sudo mkdir -p "$XDG_RUNTIME_DIR"
           sudo chown "$(id -u):$(id -g)" "$XDG_RUNTIME_DIR"
 
-          # ------------------------------------------------------------------
-          # Start a *nested* D-Bus session, launch the secrets component of
-          # gnome-keyring *inside* it, then run the whole Cargo test suite.
-          # ------------------------------------------------------------------
-          dbus-run-session -- bash -c '
-            set -euxo pipefail
-            eval "$(gnome-keyring-daemon --start --components=secrets)"
-            cargo test --all
-          '
+          # ── run the tests ────────────────────────────────────────────────
+          # • KEYRING_BACKEND=file        → force the portable backend
+          # • KEYRING_FILE_DIR            → keep secrets inside the job’s workspace
+          # • RUST_LOG                    → extra diagnostics if something breaks again
+          export KEYRING_BACKEND=file
+          export KEYRING_FILE_DIR="$PWD/.keyring-test"
+          mkdir -p "$KEYRING_FILE_DIR"
+          export RUST_LOG=keyring::backend=debug
+
+          cargo test --all
 
       # ------------- macOS & Windows just test --------------------
       - if: runner.os != 'Linux'

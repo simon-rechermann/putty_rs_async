@@ -73,10 +73,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Tests (${{ matrix.os }})
     steps:
+      # ------------- tooling for *all* runners --------------------
       - uses: actions/checkout@v4
 
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      # ------------- Linux: start a Secret-Service session --------
       - if: runner.os == 'Linux'
-        name: Linux – deps + SecretService session
+        name: Linux deps + SecretService session
         shell: bash
         run: |
           set -euxo pipefail
@@ -101,18 +112,7 @@ jobs:
             cargo test --all
           '
 
-      # ---------- macOS / Windows paths stay unchanged ---------------------
-      - if: runner.os != 'Linux'
-        uses: arduino/setup-protoc@v3
-        with:
-          version: ${{ env.PROTOC_VERSION }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - if: runner.os != 'Linux'
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
+      # ------------- macOS & Windows just test --------------------
       - if: runner.os != 'Linux'
         name: Run unit & integration tests
         run: cargo test --all

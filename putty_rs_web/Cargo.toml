@@ -10,10 +10,11 @@ path = "src/main.rs"
 [dependencies]
 tonic          = { version = "0.13", default-features = false, features = ["transport"] }
 axum           = "0.7"          # lightweight HTTP server
-tower-http     = { version = "0.5", features = ["fs"] }
+tower-http     = { version = "0.5", features = ["fs", "trace"] }
 tokio          = { version = "1", features = ["full"] }
 rust-embed     = "8"            # ♥ one-liner static embedding
 mime_guess     = "2"            # nice Content-Type headers
 anyhow         = "1"            # ergonomic errors
+tracing       = "0.1"
 
 putty_grpc_server = { path = "../putty_grpc_server" }

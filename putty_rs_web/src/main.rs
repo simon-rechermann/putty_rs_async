@@ -1,6 +1,5 @@
 use tokio::{select, spawn};
 mod web;
-use putty_grpc_server; // ⬅ we’ll create a tiny re-export here
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

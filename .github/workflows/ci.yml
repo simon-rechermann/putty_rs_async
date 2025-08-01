@@ -24,7 +24,7 @@ jobs:
         name: Linux build deps
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y pkg-config libudev-dev libdbus-1-dev
+          sudo apt-get install -y pkg-config libudev-dev
       # Cross‑platform protoc
       - uses: arduino/setup-protoc@v3
         with:
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -y && sudo apt-get install -y pkg-config libudev-dev libdbus-1-dev
+      - run: sudo apt-get update -y && sudo apt-get install -y pkg-config libudev-dev
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -y &&
-             sudo apt-get install -y pkg-config libudev-dev libdbus-1-dev
+             sudo apt-get install -y pkg-config libudev-dev
       - uses: arduino/setup-protoc@v3
         with:
           version: ${{ env.PROTOC_VERSION }}
@@ -108,7 +108,7 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y \
-            pkg-config libudev-dev libdbus-1-dev \
+            pkg-config libudev-dev \
             socat openssh-client openssh-server
           sudo mkdir -p /run/sshd        # sshd expects this path
 

@@ -3,5 +3,6 @@ members = [
     "putty_core",
     "putty_cli",
     "putty_grpc_server",
+    "putty_rs_web"
 ]
 resolver = "2"

@@ -1,0 +1,19 @@
+[package]
+name    = "putty_rs_web"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "putty_rs_web"
+path = "src/main.rs"
+
+[dependencies]
+tonic          = { version = "0.13", default-features = false, features = ["transport"] }
+axum           = "0.7"          # lightweight HTTP server
+tower-http     = { version = "0.5", features = ["fs"] }
+tokio          = { version = "1", features = ["full"] }
+rust-embed     = "8"            # ♥ one-liner static embedding
+mime_guess     = "2"            # nice Content-Type headers
+anyhow         = "1"            # ergonomic errors
+
+putty_grpc_server = { path = "../putty_grpc_server" }

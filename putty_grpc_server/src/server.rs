@@ -166,7 +166,7 @@ pub async fn run(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let server = RemoteConnectionServer::new(ConnectionService::new());
 
-    let addr: SocketAddr = ([127, 0, 0, 1], 50051).into();
+    let addr: SocketAddr = addr.parse()?;
     info!("gRPC-Web listening on http://{addr}");
 
     TonicServer::builder()

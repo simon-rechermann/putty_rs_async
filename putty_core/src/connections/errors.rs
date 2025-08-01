@@ -26,9 +26,9 @@ impl From<tokio_serial::Error> for ConnectionError {
 impl Display for ConnectionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConnectionError::IoError(e) => write!(f, "IO error: {}", e),
-            ConnectionError::PortError(msg) => write!(f, "Port error: {}", msg),
-            ConnectionError::Other(msg) => write!(f, "Other error: {}", msg),
+            ConnectionError::IoError(e) => write!(f, "IO error: {e}"),
+            ConnectionError::PortError(msg) => write!(f, "Port error: {msg}"),
+            ConnectionError::Other(msg) => write!(f, "Other error: {msg}"),
         }
     }
 }

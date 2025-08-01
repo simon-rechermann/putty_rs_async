@@ -149,8 +149,7 @@ LogLevel QUIET                  # ← set to DEBUG3 for more info
     // A real assertion: make sure the bytes are in the buffer we kept
     assert!(
         echoed.windows(2).any(|w| w == b"hi"),
-        "did not find 'hi' in echoed data: {:?}",
-        echoed
+        "did not find 'hi' in echoed data: {echoed:?}"
     );
 
     log::info!("received: {:?}", String::from_utf8_lossy(&echoed));

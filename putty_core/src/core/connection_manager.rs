@@ -73,7 +73,7 @@ impl ConnectionManager {
         let id_clone = id.clone();
         let broadcast_tx_clone = broadcast_tx.clone();
         let io_task_handle = tokio::spawn(async move {
-            info!("Async I/O task started for connection '{}'.", id_clone);
+            info!("Async I/O task started for connection '{id_clone}'.");
             let mut buf = [0u8; 256];
             loop {
                 // This implicitly awaits concurrently for
@@ -82,13 +82,13 @@ impl ConnectionManager {
                     Some(event) = write_stop_rx.recv() => {
                         match event {
                             IoEvent::Write(data) => {
-                                debug!("Write: {:?} to connection", data);
+                                debug!("Write: {data:?} to connection");
                                 if let Err(e) = conn.write(&data).await {
-                                    error!("Write error on '{}': {:?}", id_clone, e);
+                                    error!("Write error on '{id_clone}': {e:?}");
                                 }
                             },
                             IoEvent::Stop => {
-                                info!("Stop received for '{}'. Exiting task.", id_clone);
+                                info!("Stop received for '{id_clone}'. Exiting task.");
                                 break;
                             },
                         }
@@ -96,14 +96,14 @@ impl ConnectionManager {
                     result = conn.read(&mut buf) => {
                         match result {
                             Ok(0) => {
-                                debug!("Read 0 bytes from '{}'", id_clone);
+                                debug!("Read 0 bytes from '{id_clone}'");
                             },
                             Ok(n) => {
-                                debug!("Read {} bytes from '{}'", n, id_clone);
+                                debug!("Read {n} bytes from '{id_clone}'");
                                 let _ = broadcast_tx_clone.send(buf[..n].to_vec());
                             },
                             Err(e) => {
-                                debug!("Read error on '{}': {:?}", id_clone, e);
+                                debug!("Read error on '{id_clone}': {e:?}");
                                 break;
                             },
                         }
@@ -111,7 +111,7 @@ impl ConnectionManager {
                 }
             }
             let _ = conn.disconnect().await;
-            info!("Async I/O task ended for '{}'.", id_clone);
+            info!("Async I/O task ended for '{id_clone}'.");
         });
 
         let handle = ConnectionIOHandle {
@@ -137,7 +137,7 @@ impl ConnectionManager {
     pub async fn write_bytes(&self, id: &str, data: &[u8]) -> Result<usize, ConnectionError> {
         let map = self.inner.lock().await;
         if let Some(handle) = map.get(id) {
-            debug!("write: {:?}", data);
+            debug!("write: {data:?}");
             handle
                 .write_stop_tx
                 .send(IoEvent::Write(data.to_vec()))
@@ -146,8 +146,7 @@ impl ConnectionManager {
             Ok(data.len())
         } else {
             Err(ConnectionError::Other(format!(
-                "No connection with id '{}'",
-                id
+                "No connection with id '{id}'"
             )))
         }
     }
@@ -161,8 +160,7 @@ impl ConnectionManager {
             Ok(())
         } else {
             Err(ConnectionError::Other(format!(
-                "No connection with id '{}'",
-                id
+                "No connection with id '{id}'"
             )))
         }
     }

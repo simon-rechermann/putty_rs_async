@@ -6,14 +6,14 @@ use putty_core::connections::serial::SerialConnection;
 use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 use putty_core::core::connection_manager::ConnectionManager;
+use putty_core::{Profile, ProfileStore};
 use std::io::{stdout, Write};
 use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
 fn set_raw_mode() -> Result<(), ConnectionError> {
-    enable_raw_mode()
-        .map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {}", e)))
+    enable_raw_mode().map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {e}")))
 }
 
 /// Restore normal terminal mode.
@@ -56,6 +56,45 @@ pub enum Protocol {
         #[arg(long, default_value = "")]
         password: String,
     },
+    /// Manage saved connection presets.
+    Storage {
+        #[command(subcommand)]
+        action: StorageAction,
+    },
+}
+
+/// Actions in `putty_rs storage <action>`
+#[derive(Subcommand, Debug)]
+pub enum StorageAction {
+    List,
+    SaveSerial {
+        #[arg(long)]
+        name: String,
+        #[arg(long, default_value = "/dev/pts/3")]
+        port: String,
+        #[arg(long, default_value_t = 115200)]
+        baud: u32,
+    },
+    SaveSsh {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        host: String,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        #[arg(long)]
+        username: String,
+        #[arg(long, default_value = "")]
+        password: String,
+    },
+    Delete {
+        #[arg(long)]
+        name: String,
+    },
+    UseProfile {
+        #[arg(long)]
+        profile: String,
+    },
 }
 
 pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
@@ -73,6 +112,44 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
         } => {
             run_ssh_protocol(host, port, username, password, &connection_manager).await?;
         }
+        Protocol::Storage { action } => match action {
+            // open by profile name
+            StorageAction::UseProfile { profile } => {
+                let store =
+                    ProfileStore::new().map_err(|e| ConnectionError::Other(e.to_string()))?;
+                let preset = store
+                    .list()?
+                    .into_iter()
+                    .find(|p| p.name() == profile)
+                    .ok_or_else(|| {
+                        ConnectionError::Other(format!("preset not found: {profile}"))
+                    })?;
+
+                match preset {
+                    Profile::Serial { port, baud, .. } => {
+                        run_serial_protocol(port, baud, &connection_manager).await?
+                    }
+                    Profile::Ssh {
+                        host,
+                        port,
+                        username,
+                        password,
+                        ..
+                    } => {
+                        run_ssh_protocol(host, port, username, password, &connection_manager)
+                            .await?
+                    }
+                }
+            }
+
+            // list / save / delete remain unchanged
+            StorageAction::List
+            | StorageAction::SaveSerial { .. }
+            | StorageAction::SaveSsh { .. }
+            | StorageAction::Delete { .. } => {
+                handle_storage_cmd(action).await?;
+            }
+        },
     }
     Ok(())
 }
@@ -82,7 +159,7 @@ async fn run_serial_protocol(
     baud: u32,
     connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
-    info!("Opening serial port: {} at {} baud", port, baud);
+    info!("Opening serial port: {port} at {baud} baud");
     let conn = SerialConnection::new(port.clone(), baud);
     run_cli_loop(connection_manager, port, Box::new(conn)).await
 }
@@ -94,10 +171,7 @@ async fn run_ssh_protocol(
     password: String,
     connection_manager: &ConnectionManager,
 ) -> Result<(), ConnectionError> {
-    info!(
-        "Connecting to SSH server {}:{} as user {}",
-        host, port, username
-    );
+    info!("Connecting to SSH server {host}:{port} as user {username}");
     let conn = SshConnection::new(host.clone(), port, username, password);
     run_cli_loop(connection_manager, host, Box::new(conn)).await
 }
@@ -156,5 +230,43 @@ async fn run_cli_loop(
     }
     let _ = connection_manager.stop_connection(&id).await;
     info!("Terminal mode restored.");
+    Ok(())
+}
+
+async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError> {
+    let store = ProfileStore::new().map_err(|e| ConnectionError::Other(e.to_string()))?;
+
+    match action {
+        StorageAction::List => {
+            for p in store.list()? {
+                println!("{p:?}");
+            }
+        }
+        StorageAction::SaveSerial { name, port, baud } => {
+            store.save(&Profile::Serial { name, port, baud })?;
+        }
+        StorageAction::SaveSsh {
+            name,
+            host,
+            port,
+            username,
+            password,
+        } => {
+            store.save(&Profile::Ssh {
+                name,
+                host,
+                port,
+                username,
+                password,
+                keyring_id: None, // not needed here
+            })?;
+        }
+        StorageAction::Delete { name } => {
+            if !store.delete(&name)? {
+                eprintln!("No such profile: {name}");
+            }
+        }
+        StorageAction::UseProfile { .. } => unreachable!(), // handled above
+    }
     Ok(())
 }

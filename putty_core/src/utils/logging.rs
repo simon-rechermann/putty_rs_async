@@ -9,6 +9,6 @@ pub fn init_logging() {
     // let log_file = File::create("my.log").unwrap();
     env_logger::Builder::from_default_env()
         // .target(Target::Pipe(Box::new(log_file)))
-        .filter(None, LevelFilter::Info)
+        .filter(None, LevelFilter::Debug)
         .init();
 }

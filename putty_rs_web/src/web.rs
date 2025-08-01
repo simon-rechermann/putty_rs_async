@@ -3,10 +3,9 @@ use axum::{
     http::{Request, Response, StatusCode},
     response::IntoResponse,
     routing::get_service,
-    Router,
-    serve,
+    serve, Router,
 };
-                      // ← use hyper directly
+// ← use hyper directly
 use rust_embed::RustEmbed;
 use std::path::PathBuf;
 use tokio::net::TcpListener;
@@ -14,7 +13,7 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
-use tracing::{Level, info};
+use tracing::{info, Level};
 
 /* ───────────── bundled assets ───────────── */
 #[derive(RustEmbed)]
@@ -32,11 +31,10 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
     );
 
     /* 1 ─ try disk first */
-    let serve_dir = get_service(ServeDir::new(&www_root))
-        .handle_error(|err| async move {
-            tracing::warn!("ServeDir error: {err}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        });
+    let serve_dir = get_service(ServeDir::new(&www_root)).handle_error(|err| async move {
+        tracing::warn!("ServeDir error: {err}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    });
 
     /* 2 ─ fall back to embedded content */
     async fn fallback(req: Request<Body>) -> impl IntoResponse {
@@ -46,9 +44,7 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
             Some(d) => Response::builder()
                 .header(
                     "Content-Type",
-                    mime_guess::from_path(path)
-                        .first_or_octet_stream()
-                        .as_ref(),
+                    mime_guess::from_path(path).first_or_octet_stream().as_ref(),
                 )
                 .body(Body::from(d.data.into_owned()))
                 .unwrap(),
@@ -57,9 +53,10 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
     }
 
     let app = Router::new()
-        .fallback(fallback)                  // any request not handled below
-        .nest_service("/", serve_dir)        // static files
-        .layer(                              // one-line access log
+        .fallback(fallback) // any request not handled below
+        .nest_service("/", serve_dir) // static files
+        .layer(
+            // one-line access log
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),

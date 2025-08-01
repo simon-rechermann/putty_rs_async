@@ -14,11 +14,15 @@ fn main() {
 
     // 1. run `npm ci`   (installs exactly the versions in package-lock.json)
     // 2. run `npm run build`  (Vite → webui/dist)
-    Command::new("npm").args(["ci"])
+    Command::new("npm")
+        .args(["ci"])
         .current_dir("../webui")
-        .status().expect("npm ci failed");
+        .status()
+        .expect("npm ci failed");
 
-    Command::new("npm").args(["run", "build"])
+    Command::new("npm")
+        .args(["run", "build"])
         .current_dir("../webui")
-        .status().expect("npm run build failed");
+        .status()
+        .expect("npm run build failed");
 }

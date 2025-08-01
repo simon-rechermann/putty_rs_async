@@ -13,4 +13,4 @@ pub use proto as putty_interface;
 mod convert;
 mod server;
 
-pub use server::run;    
+pub use server::run;

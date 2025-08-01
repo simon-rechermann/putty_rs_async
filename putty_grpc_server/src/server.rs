@@ -16,7 +16,6 @@ use tracing::info;
 use crate::putty_interface::remote_connection_server::{RemoteConnection, RemoteConnectionServer};
 use crate::putty_interface::*;
 
-
 // ── gRPC service backed by putty_core ─────────────────────────────────────────
 #[derive(Clone)]
 struct ConnectionService {

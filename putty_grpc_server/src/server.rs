@@ -10,7 +10,7 @@ use tonic::{
     Status,
 };
 use tonic_web::GrpcWebLayer;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::putty_interface::remote_connection_server::{RemoteConnection, RemoteConnectionServer};
@@ -168,10 +168,16 @@ pub async fn run(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = addr.parse()?;
     info!("gRPC-Web listening on http://{addr}");
 
+    // ── CORS: allow everything *and* expose all headers ──────────
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);   
+
     TonicServer::builder()
         .accept_http1(true) // gRPC-Web needs h1
+        .layer(cors) // allow browser calls
         .layer(GrpcWebLayer::new()) // translate to gRPC-Web
-        .layer(CorsLayer::permissive()) // allow browser calls
         .add_service(server)
         .serve(addr)
         .await?;

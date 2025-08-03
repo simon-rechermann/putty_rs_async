@@ -21,10 +21,15 @@ export type DeleteProfileFn  = (name:string)=>Promise<void>;
 export type ConnectProfileFn = (name:string)=>Promise<string|undefined>;
 
 /* ---------- gRPC-Web transport ---------------------------------- */
+const GRPC_PORT = 50051;                          // keep in one place
+const baseUrl =
+  `${window.location.protocol}//${window.location.hostname}:${GRPC_PORT}`;
+
 const transport = createGrpcWebTransport({
-  baseUrl: window.location.origin,
+  baseUrl,
   useBinaryFormat: true,
 });
+
 const rpc = createClient(RemoteConnection, transport);
 
 /* ---------- hook ------------------------------------------------ */

@@ -1,11 +1,21 @@
+//! Very small HTTP server that
+//! 1. serves everything in `../webui/dist` from disk during dev
+//! 2. falls back to the same bundle embedded with `rust-embed`
+//!
+//! There is **no** proxying layer here – the React/TS frontend should talk
+//! to the gRPC-Web endpoint on `http://<host>:50051` directly.  That
+//! endpoint already has `CorsLayer::permissive()` on it.
+
 use axum::{
     body::Body,
-    http::{Request, Response, StatusCode},
+    http::{
+        header::{HeaderValue, CONTENT_TYPE},
+        Request, Response, StatusCode,
+    },
     response::IntoResponse,
     routing::get_service,
     serve, Router,
 };
-// ← use hyper directly
 use rust_embed::RustEmbed;
 use std::path::PathBuf;
 use tokio::net::TcpListener;
@@ -13,59 +23,63 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 
-/* ───────────── bundled assets ───────────── */
+/* ---------- embed the compiled bundle (for release builds) ------------ */
+
 #[derive(RustEmbed)]
 #[folder = "../webui/dist"]
 struct Assets;
 
-/* ───────────── server runner ───────────── */
+/* --------------------------- runner ----------------------------------- */
+
 pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
-    /* where to look on disk (handy during dev) */
+    /* where we look for the bundle on disk */
     let www_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../webui/dist");
     info!("🔍 serving files from: {}", www_root.display());
+
     assert!(
         www_root.join("index.html").exists(),
-        "frontend bundle not found – did you run  npm run build  ?"
+        "frontend bundle not found – did you run  npm run build ?"
     );
 
-    /* 1 ─ try disk first */
+    /* ── (1) Serve from disk whenever possible ───────────────────────── */
     let serve_dir = get_service(ServeDir::new(&www_root)).handle_error(|err| async move {
-        tracing::warn!("ServeDir error: {err}");
+        warn!("ServeDir error: {err}");
         StatusCode::INTERNAL_SERVER_ERROR
     });
 
-    /* 2 ─ fall back to embedded content */
-    async fn fallback(req: Request<Body>) -> impl IntoResponse {
+    /* ── (2) SPA fallback: embedded bundle (also catches 404) ─────────── */
+    async fn spa_fallback(req: Request<Body>) -> impl IntoResponse {
         let path = req.uri().path().trim_start_matches('/');
         let asset = Assets::get(path).or_else(|| Assets::get("index.html")); // SPA
         match asset {
-            Some(d) => Response::builder()
-                .header(
-                    "Content-Type",
-                    mime_guess::from_path(path).first_or_octet_stream().as_ref(),
-                )
-                .body(Body::from(d.data.into_owned()))
-                .unwrap(),
+            Some(file) => {
+                let mime = mime_guess::from_path(path).first_or_octet_stream();
+                let mut resp = Response::new(Body::from(file.data.into_owned()));
+                resp.headers_mut().insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_str(mime.as_ref()).unwrap(),
+                );  
+                resp
+            }
             None => (StatusCode::NOT_FOUND, "404").into_response(),
         }
     }
 
+    /* ── compose the router ───────────────────────────────────────────── */
     let app = Router::new()
-        .fallback(fallback) // any request not handled below
-        .nest_service("/", serve_dir) // static files
+        .nest_service("/", serve_dir) // static files first
+        .fallback(spa_fallback)       // everything else → embedded SPA
         .layer(
-            // one-line access log
-            TraceLayer::new_for_http()
+            TraceLayer::new_for_http() // 1-line structured access log
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         );
 
-    /* run */
+    /* ── run ──────────────────────────────────────────────────────────── */
     let listener = TcpListener::bind(addr).await?;
     info!("static files on http://{addr}");
     serve(listener, app).await?;
-
     Ok(())
 }

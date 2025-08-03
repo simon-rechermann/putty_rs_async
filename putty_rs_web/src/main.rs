@@ -4,7 +4,7 @@ mod web;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let grpc_addr = "0.0.0.0:50051";
-    let http_addr = "0.0.0.0:8080";
+    let http_addr = "127.0.0.1:8080";
 
     // start HTTP-static server
     let http = spawn(async {

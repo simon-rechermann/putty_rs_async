@@ -1358,7 +1358,6 @@ dependencies = [
  "putty_grpc_server",
  "rust-embed",
  "tokio",
- "tonic",
  "tower-http 0.5.2",
  "tracing",
 ]

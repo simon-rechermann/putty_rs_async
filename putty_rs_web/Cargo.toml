@@ -8,13 +8,20 @@ name = "putty_rs_web"
 path = "src/main.rs"
 
 [dependencies]
-tonic          = { version = "0.13", default-features = false, features = ["transport"] }
-axum           = "0.7"          # lightweight HTTP server
+# HTTP stack
+axum           = "0.7"
 tower-http     = { version = "0.5", features = ["fs", "trace"] }
-tokio          = { version = "1", features = ["full"] }
-rust-embed     = "8"            # ♥ one-liner static embedding
-mime_guess     = "2"            # nice Content-Type headers
-anyhow         = "1"            # ergonomic errors
-tracing       = "0.1"
 
+# runtime & logging
+tokio          = { version = "1", features = ["full"] }
+tracing        = "0.1"
+
+# static-bundle helpers
+rust-embed     = "8"
+mime_guess     = "2"
+
+# misc
+anyhow         = "1"
+
+# gRPC server crate
 putty_grpc_server = { path = "../putty_grpc_server" }

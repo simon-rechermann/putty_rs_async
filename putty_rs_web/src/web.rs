@@ -24,7 +24,6 @@ use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
 use tracing::{info, warn, Level};
-use webbrowser;
 
 /* ---------- embed the compiled bundle (for release builds) ------------ */
 
@@ -81,7 +80,6 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
     info!("static files on http://{addr}");
 
     // Open the page once the listener is bound.
-    // If you bind 0.0.0.0, open localhost for convenience.
     let url_to_open = if addr.starts_with("0.0.0.0:") {
         let port = addr.split(':').nth(1).unwrap_or("8080");
         format!("http://127.0.0.1:{port}")

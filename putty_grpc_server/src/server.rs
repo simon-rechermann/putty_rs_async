@@ -172,7 +172,7 @@ pub async fn run(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);   
+        .allow_headers(Any);
 
     TonicServer::builder()
         .accept_http1(true) // gRPC-Web needs h1

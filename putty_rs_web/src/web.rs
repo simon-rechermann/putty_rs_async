@@ -57,10 +57,8 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
             Some(file) => {
                 let mime = mime_guess::from_path(path).first_or_octet_stream();
                 let mut resp = Response::new(Body::from(file.data.into_owned()));
-                resp.headers_mut().insert(
-                    CONTENT_TYPE,
-                    HeaderValue::from_str(mime.as_ref()).unwrap(),
-                );  
+                resp.headers_mut()
+                    .insert(CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap());
                 resp
             }
             None => (StatusCode::NOT_FOUND, "404").into_response(),
@@ -70,7 +68,7 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
     /* ── compose the router ───────────────────────────────────────────── */
     let app = Router::new()
         .nest_service("/", serve_dir) // static files first
-        .fallback(spa_fallback)       // everything else → embedded SPA
+        .fallback(spa_fallback) // everything else → embedded SPA
         .layer(
             TraceLayer::new_for_http() // 1-line structured access log
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

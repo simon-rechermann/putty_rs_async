@@ -24,6 +24,7 @@ use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
 use tracing::{info, warn, Level};
+use webbrowser;
 
 /* ---------- embed the compiled bundle (for release builds) ------------ */
 
@@ -78,6 +79,22 @@ pub async fn run_static_server(addr: &str) -> anyhow::Result<()> {
     /* ── run ──────────────────────────────────────────────────────────── */
     let listener = TcpListener::bind(addr).await?;
     info!("static files on http://{addr}");
+
+    // Open the page once the listener is bound.
+    // If you bind 0.0.0.0, open localhost for convenience.
+    let url_to_open = if addr.starts_with("0.0.0.0:") {
+        let port = addr.split(':').nth(1).unwrap_or("8080");
+        format!("http://127.0.0.1:{port}")
+    } else {
+        format!("http://{addr}")
+    };
+
+    // don’t block the server task
+    tokio::spawn(async move {
+        // it’s fine if this fails (headless boxes, etc.)
+        let _ = webbrowser::open(&url_to_open);
+    });
+
     serve(listener, app).await?;
     Ok(())
 }

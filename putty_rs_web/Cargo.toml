@@ -22,6 +22,7 @@ mime_guess     = "2"
 
 # misc
 anyhow         = "1"
+webbrowser = "0.8"
 
 # gRPC server crate
 putty_grpc_server = { path = "../putty_grpc_server" }

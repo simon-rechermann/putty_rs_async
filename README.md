@@ -14,6 +14,24 @@ The cli expects additional parameters. To get information about it you can run t
 cargo run --bin cli -- --help
 ```
 
+The CLI now supports transport feature flags. By default a build includes both serial and SSH support. For smaller builds you can disable default features and enable only the transport you want.
+
+```bash
+# Default CLI build: serial + ssh
+cargo build -p putty_cli
+
+# Storage-only CLI build
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features
+
+# Serial-only CLI build
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features serial
+
+# SSH-only CLI build
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features ssh
+```
+
+This works because `putty_core` exposes optional `serial` and `ssh` features, and `putty_cli` forwards those features while disabling `putty_core` defaults for the CLI dependency. That allows targeted CLI builds without changing the default behavior of the gRPC server or web binary.
+
 ## Dependencies
 
 ### Ubuntu

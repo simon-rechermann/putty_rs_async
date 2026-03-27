@@ -8,10 +8,15 @@ name = "cli"
 path = "src/main.rs"
 
 [dependencies]
-putty_core = { path = "../putty_core" }
+putty_core = { path = "../putty_core", default-features = false }
 tokio      = { version = "1.44.2", features = ["full"] }
 clap       = { version = "4.5.36", features = ["derive"] }
 log        = "0.4.27"
 env_logger = "0.11.8"
 crossterm  = "0.29.0"
 keyring     = "3.6"
+
+[features]
+default = ["serial", "ssh"]
+serial = ["putty_core/serial"]
+ssh = ["putty_core/ssh"]

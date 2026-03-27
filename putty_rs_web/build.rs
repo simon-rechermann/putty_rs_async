@@ -3,6 +3,14 @@
 //! 2. `npm run build` – emit the static site into webui/dist
 use std::{env, process::Command};
 
+fn npm_cmd() -> &'static str {
+    if cfg!(windows) {
+        "npm.cmd"
+    } else {
+        "npm"
+    }
+}
+
 fn run_checked(cmd: &str, args: &[&str]) {
     let status = Command::new(cmd)
         .args(args)
@@ -28,6 +36,7 @@ fn main() {
 
     // 1. run `npm ci`   (installs exactly the versions in package-lock.json)
     // 2. run `npm run build`  (Vite → webui/dist)
-    run_checked("npm", &["ci"]);
-    run_checked("npm", &["run", "build"]);
+    let npm = npm_cmd();
+    run_checked(npm, &["ci"]);
+    run_checked(npm, &["run", "build"]);
 }

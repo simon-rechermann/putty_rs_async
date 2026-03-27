@@ -1,0 +1,17 @@
+[workspace]
+release = false
+release_always = false
+dependencies_update = true
+pr_branch_prefix = "release-plz-"
+pr_labels = ["release"]
+repo_url = "https://github.com/simon-rechermann/putty_rs_async"
+
+[[package]]
+name = "putty_core"
+release = true
+
+[[package]]
+name = "putty-rs"
+release = true
+# Don't check semver for binary crates
+semver_check = false

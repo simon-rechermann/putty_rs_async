@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 build   = "build.rs"
 
+[lib]
+name = "putty_grpc_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "putty_grpc_server"
+path = "src/main.rs"
+
 [dependencies]
 putty_core = { path = "../putty_core" }
 

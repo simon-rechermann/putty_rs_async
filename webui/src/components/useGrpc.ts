@@ -21,10 +21,15 @@ export type DeleteProfileFn  = (name:string)=>Promise<void>;
 export type ConnectProfileFn = (name:string)=>Promise<string|undefined>;
 
 /* ---------- gRPC-Web transport ---------------------------------- */
+const GRPC_PORT = 50051;                          // keep in one place
+const baseUrl =
+  `${window.location.protocol}//${window.location.hostname}:${GRPC_PORT}`;
+
 const transport = createGrpcWebTransport({
-  baseUrl: window.location.origin,
+  baseUrl,
   useBinaryFormat: true,
 });
+
 const rpc = createClient(RemoteConnection, transport);
 
 /* ---------- hook ------------------------------------------------ */
@@ -35,7 +40,7 @@ export default function useGrpc() {
   const [connecting, setConnecting] = useState(false);
 
   /* one onKey handler per connection ----------------------------- */
-  const keyDispRef = useRef<import("xterm").IDisposable|null>(null);
+  const keyDispRef = useRef<import("@xterm/xterm").IDisposable|null>(null);
   function attachKeyHandler(id: string) {
     keyDispRef.current?.dispose();
     const term = termRef.current?.term;

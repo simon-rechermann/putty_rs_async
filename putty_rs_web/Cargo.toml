@@ -1,0 +1,28 @@
+[package]
+name    = "putty_rs_web"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "putty_rs_web"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP stack
+axum           = "0.7"
+tower-http     = { version = "0.5", features = ["fs", "trace"] }
+
+# runtime & logging
+tokio          = { version = "1", features = ["full"] }
+tracing        = "0.1"
+
+# static-bundle helpers
+rust-embed     = "8"
+mime_guess     = "2"
+
+# misc
+anyhow         = "1"
+webbrowser = "0.8"
+
+# gRPC server crate
+putty_grpc_server = { path = "../putty_grpc_server" }

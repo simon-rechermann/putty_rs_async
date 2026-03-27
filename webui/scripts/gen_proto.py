@@ -9,10 +9,14 @@ Regenerate ES-module stubs into src/generated/ :
 from pathlib import Path
 import subprocess, shutil, sys
 
-ROOT   = Path(__file__).resolve().parents[1]          # …/webui
-OUT    = ROOT / "src" / "generated"
-PROTO  = ROOT.parent / "putty_grpc_server" / "proto" / "putty_interface.proto"
-BIN    = ROOT / "node_modules" / ".bin"
+ROOT = Path(__file__).resolve().parents[1]  # …/webui
+OUT = ROOT / "src" / "generated"
+BIN = ROOT / "node_modules" / ".bin"
+
+# Keep protoc paths relative to ROOT so Windows drive letters never end up in
+# `--*_out=opts:path` arguments, where `:` is already used as a separator.
+OUT_REL = Path("src") / "generated"
+PROTO_REL = Path("..") / "putty_grpc_server" / "proto" / "putty_interface.proto"
 
 def exe(name: str) -> str:            # adds .cmd on Windows
     suffix = ".cmd" if sys.platform == "win32" else ""
@@ -26,12 +30,12 @@ cmd = [
     "protoc",
     f"--plugin=protoc-gen-es={exe('es')}",
     f"--plugin=protoc-gen-connect-es={exe('connect-es')}",
-    f"-I{PROTO.parent}",
-    f"--es_out=target=ts,import_extension=.ts:{OUT}",
-    f"--connect-es_out=target=ts,import_extension=.ts:{OUT}",
-    str(PROTO),
+    f"-I{PROTO_REL.parent.as_posix()}",
+    f"--es_out=target=ts,import_extension=.ts:{OUT_REL.as_posix()}",
+    f"--connect-es_out=target=ts,import_extension=.ts:{OUT_REL.as_posix()}",
+    PROTO_REL.as_posix(),
 ]
 
 print("→", " ".join(cmd))
-subprocess.run(cmd, check=True)
+subprocess.run(cmd, check=True, cwd=ROOT)
 print("✅  generated files in", OUT.relative_to(ROOT))

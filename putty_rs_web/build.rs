@@ -3,6 +3,20 @@
 //! 2. `npm run build` – emit the static site into webui/dist
 use std::{env, process::Command};
 
+fn run_checked(cmd: &str, args: &[&str]) {
+    let status = Command::new(cmd)
+        .args(args)
+        .current_dir("../webui")
+        .status()
+        .unwrap_or_else(|e| panic!("{cmd} {} failed to start: {e}", args.join(" ")));
+
+    assert!(
+        status.success(),
+        "{cmd} {} exited with status {status}",
+        args.join(" ")
+    );
+}
+
 fn main() {
     // Watch the folder for changes by printing cargo:rerun-if-changed= line
     println!("cargo:rerun-if-changed=../webui");
@@ -14,15 +28,6 @@ fn main() {
 
     // 1. run `npm ci`   (installs exactly the versions in package-lock.json)
     // 2. run `npm run build`  (Vite → webui/dist)
-    Command::new("npm")
-        .args(["ci"])
-        .current_dir("../webui")
-        .status()
-        .expect("npm ci failed");
-
-    Command::new("npm")
-        .args(["run", "build"])
-        .current_dir("../webui")
-        .status()
-        .expect("npm run build failed");
+    run_checked("npm", &["ci"]);
+    run_checked("npm", &["run", "build"]);
 }

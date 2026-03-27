@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

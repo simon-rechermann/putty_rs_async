@@ -40,7 +40,7 @@ export default function useGrpc() {
   const [connecting, setConnecting] = useState(false);
 
   /* one onKey handler per connection ----------------------------- */
-  const keyDispRef = useRef<import("xterm").IDisposable|null>(null);
+  const keyDispRef = useRef<import("@xterm/xterm").IDisposable|null>(null);
   function attachKeyHandler(id: string) {
     keyDispRef.current?.dispose();
     const term = termRef.current?.term;

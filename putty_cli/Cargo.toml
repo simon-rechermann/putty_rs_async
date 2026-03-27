@@ -1,14 +1,20 @@
 [package]
-name    = "putty_cli"
+name    = "putty-rs"
 version = "0.1.0"
 edition = "2021"
+description = "Composable terminal client with serial and SSH support"
+license = "MIT"
+repository = "https://github.com/simon-rechermann/putty_rs_async"
+readme = "README.md"
+keywords = ["terminal", "serial", "ssh", "cli"]
+categories = ["command-line-utilities"]
 
 [[bin]]
-name = "cli"
+name = "putty-rs"
 path = "src/main.rs"
 
 [dependencies]
-putty_core = { path = "../putty_core", default-features = false }
+putty_core = { path = "../putty_core", version = "0.1.0", default-features = false }
 tokio      = { version = "1.44.2", features = ["full"] }
 clap       = { version = "4.5.36", features = ["derive"] }
 log        = "0.4.27"

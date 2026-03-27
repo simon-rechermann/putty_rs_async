@@ -11,14 +11,14 @@ that implement the proto interface provides by the server.
 The cli expects additional parameters. To get information about it you can run the following command.
 
 ```bash
-cargo run --bin cli -- --help
+cargo run -p putty-rs -- --help
 ```
 
 The CLI now supports transport feature flags. By default a build includes both serial and SSH support. For smaller builds you can disable default features and enable only the transport you want.
 
 ```bash
 # Default CLI build: serial + ssh
-cargo build -p putty_cli
+cargo build -p putty-rs
 
 # Storage-only CLI build
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features
@@ -48,8 +48,8 @@ sudo apt install protobuf-compiler
 ```bash
 socat -d -d pty,raw,echo=0 pty,raw,echo=0 # Create two connected virtual serial devices e.g. /dev/pts/2 and /dev/pts/3
 # Connect a programm like putty to /dev/pts/2 or just launch putty-rs twice
-cargo run --bin cli -- serial --port /dev/pts/2 # run putty-rs and connect it to /dev/pts/2
-cargo run --bin cli -- serial --port /dev/pts/3 # run putty-rs and connect it to /dev/pts/3
+cargo run -p putty-rs -- serial --port /dev/pts/2 # run putty-rs and connect it to /dev/pts/2
+cargo run -p putty-rs -- serial --port /dev/pts/3 # run putty-rs and connect it to /dev/pts/3
 ```
 
 ## Test ssh connection
@@ -57,7 +57,7 @@ cargo run --bin cli -- serial --port /dev/pts/3 # run putty-rs and connect it to
 To be able to connect to a ssh server you need to specify some parameters.
 
 ```bash
-cargo run --bin cli -- ssh --help
+cargo run -p putty-rs -- ssh --help
 ```
 
 ## Test the gRPC server

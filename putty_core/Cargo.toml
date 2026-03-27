@@ -2,6 +2,12 @@
 name = "putty_core"
 version = "0.1.0"
 edition = "2021"
+description = "Core connection, profile storage, and transport logic for putty-rs"
+license = "MIT"
+repository = "https://github.com/simon-rechermann/putty_rs_async"
+readme = "README.md"
+keywords = ["terminal", "serial", "ssh"]
+categories = ["command-line-utilities"]
 
 [lib]
 crate-type = ["rlib"]

@@ -36,6 +36,6 @@ cmd = [
     PROTO_REL.as_posix(),
 ]
 
-print("→", " ".join(cmd))
+print("protoc:", " ".join(cmd))
 subprocess.run(cmd, check=True, cwd=ROOT)
-print("✅  generated files in", OUT.relative_to(ROOT))
+print("generated files in", OUT.relative_to(ROOT))

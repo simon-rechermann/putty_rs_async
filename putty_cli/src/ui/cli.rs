@@ -1,23 +1,33 @@
 use clap::{Parser, Subcommand};
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use log::info;
 use putty_core::connections::errors::ConnectionError;
+#[cfg(feature = "serial")]
 use putty_core::connections::serial::SerialConnection;
+#[cfg(feature = "ssh")]
 use putty_core::connections::ssh::SshConnection;
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use putty_core::connections::Connection;
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use putty_core::core::connection_manager::ConnectionManager;
 use putty_core::{Profile, ProfileStore};
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use std::io::{stdout, Write};
+#[cfg(any(feature = "serial", feature = "ssh"))]
 use tokio::io::{self, AsyncReadExt};
 
 /// Enable raw mode via crossterm, throwing an error if it fails.
 /// This disables line-buffering and echo on all supported platforms.
+#[cfg(any(feature = "serial", feature = "ssh"))]
 fn set_raw_mode() -> Result<(), ConnectionError> {
     enable_raw_mode().map_err(|e| ConnectionError::Other(format!("Failed to enable raw mode: {e}")))
 }
 
 /// Restore normal terminal mode.
 /// crossterm internally remembers the previous mode and restores it.
+#[cfg(any(feature = "serial", feature = "ssh"))]
 fn restore_mode() {
     let _ = disable_raw_mode();
 }
@@ -32,6 +42,7 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Protocol {
+    #[cfg(feature = "serial")]
     /// Use a serial connection
     Serial {
         /// Serial port to open
@@ -41,6 +52,7 @@ pub enum Protocol {
         #[arg(long, default_value_t = 115200)]
         baud: u32,
     },
+    #[cfg(feature = "ssh")]
     /// Use an SSH connection
     Ssh {
         /// SSH server host
@@ -67,6 +79,7 @@ pub enum Protocol {
 #[derive(Subcommand, Debug)]
 pub enum StorageAction {
     List,
+    #[cfg(feature = "serial")]
     SaveSerial {
         #[arg(long)]
         name: String,
@@ -75,6 +88,7 @@ pub enum StorageAction {
         #[arg(long, default_value_t = 115200)]
         baud: u32,
     },
+    #[cfg(feature = "ssh")]
     SaveSsh {
         #[arg(long)]
         name: String,
@@ -98,12 +112,15 @@ pub enum StorageAction {
 }
 
 pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
+    #[cfg(any(feature = "serial", feature = "ssh"))]
     let connection_manager = ConnectionManager::new();
 
     match args.protocol {
+        #[cfg(feature = "serial")]
         Protocol::Serial { port, baud } => {
             run_serial_protocol(port, baud, &connection_manager).await?;
         }
+        #[cfg(feature = "ssh")]
         Protocol::Ssh {
             host,
             port,
@@ -126,9 +143,17 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
                     })?;
 
                 match preset {
+                    #[cfg(feature = "serial")]
                     Profile::Serial { port, baud, .. } => {
                         run_serial_protocol(port, baud, &connection_manager).await?
                     }
+                    #[cfg(not(feature = "serial"))]
+                    Profile::Serial { .. } => {
+                        return Err(ConnectionError::Other(
+                            "This CLI was built without serial support".into(),
+                        ));
+                    }
+                    #[cfg(feature = "ssh")]
                     Profile::Ssh {
                         host,
                         port,
@@ -139,14 +164,27 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
                         run_ssh_protocol(host, port, username, password, &connection_manager)
                             .await?
                     }
+                    #[cfg(not(feature = "ssh"))]
+                    Profile::Ssh { .. } => {
+                        return Err(ConnectionError::Other(
+                            "This CLI was built without SSH support".into(),
+                        ));
+                    }
                 }
             }
 
-            // list / save / delete remain unchanged
-            StorageAction::List
-            | StorageAction::SaveSerial { .. }
-            | StorageAction::SaveSsh { .. }
-            | StorageAction::Delete { .. } => {
+            StorageAction::List => {
+                handle_storage_cmd(action).await?;
+            }
+            #[cfg(feature = "serial")]
+            StorageAction::SaveSerial { .. } => {
+                handle_storage_cmd(action).await?;
+            }
+            #[cfg(feature = "ssh")]
+            StorageAction::SaveSsh { .. } => {
+                handle_storage_cmd(action).await?;
+            }
+            StorageAction::Delete { .. } => {
                 handle_storage_cmd(action).await?;
             }
         },
@@ -154,6 +192,7 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
     Ok(())
 }
 
+#[cfg(feature = "serial")]
 async fn run_serial_protocol(
     port: String,
     baud: u32,
@@ -164,6 +203,7 @@ async fn run_serial_protocol(
     run_cli_loop(connection_manager, port, Box::new(conn)).await
 }
 
+#[cfg(feature = "ssh")]
 async fn run_ssh_protocol(
     host: String,
     port: u16,
@@ -182,6 +222,7 @@ async fn run_ssh_protocol(
 /// (via `Box<dyn Connection + Send + Unpin>`)
 /// to the connection manager, enables raw terminal mode, and reads user input to write to the connection.
 /// It exits when the user types Ctrl+A followed by 'x',
+#[cfg(any(feature = "serial", feature = "ssh"))]
 async fn run_cli_loop(
     connection_manager: &ConnectionManager,
     id: String,
@@ -242,9 +283,11 @@ async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError
                 println!("{p:?}");
             }
         }
+        #[cfg(feature = "serial")]
         StorageAction::SaveSerial { name, port, baud } => {
             store.save(&Profile::Serial { name, port, baud })?;
         }
+        #[cfg(feature = "ssh")]
         StorageAction::SaveSsh {
             name,
             host,

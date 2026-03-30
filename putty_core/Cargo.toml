@@ -2,6 +2,12 @@
 name = "putty_core"
 version = "0.1.0"
 edition = "2021"
+description = "Core connection, profile storage, and transport logic for putty-rs"
+license = "MIT"
+repository = "https://github.com/simon-rechermann/putty_rs_async"
+readme = "README.md"
+keywords = ["terminal", "serial", "ssh"]
+categories = ["command-line-utilities"]
 
 [lib]
 crate-type = ["rlib"]
@@ -12,8 +18,8 @@ async-trait = "0.1.88"
 env_logger = "0.11.8"
 log = "0.4.27"
 crossterm = "0.29.0"
-tokio-serial = "5.4.5"
-ssh2 = "0.9.5"
+tokio-serial = { version = "5.4.5", optional = true }
+ssh2 = { version = "0.9.5", optional = true }
 serde        = { version = "1.0", features = ["derive"] }   # (de)serialize structs
 serde_json   = "1.0"                                        # read / write JSON
 directories  = "6.0"                                       # manage user directories
@@ -27,5 +33,7 @@ which = "8.0.0"
 uuid    = { version = "1", features = ["v4"] }
 
 [features]
-default = []
+default = ["serial", "ssh"]
+serial = ["dep:tokio-serial"]
+ssh = ["dep:ssh2"]
 hw-tests = []

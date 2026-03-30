@@ -3,34 +3,43 @@
 putty-rs is a rust clone of [putty](https://www.putty.org/).
 The complete documentation is available in docs/index.adoc
 
-## Usage
+## Components
 
-There is is command line interface (cli) and a gRPC server to support language independet gRPC client
-that implement the proto interface provides by the server.
+- `putty-rs`: CLI binary with serial, SSH, and profile management support
+- `putty_core`: core transport, storage, and connection management logic
+- `putty_grpc_server`: gRPC server exposing the backend for other clients
+- `putty_rs_web`: single-binary web launcher that starts the backend and serves the web UI
+- `webui`: React frontend for the browser-based UI
 
-The cli expects additional parameters. To get information about it you can run the following command.
+## CLI
+
+CLI install, build, usage, profile handling, and terminal controls are documented in [putty_cli/README.md](putty_cli/README.md).
+
+## Build CLI From Source
+
+Default build with both serial and SSH support:
 
 ```bash
-cargo run -p putty-rs -- --help
+cargo build -p putty-rs
 ```
 
-The CLI now supports transport feature flags. By default a build includes both serial and SSH support. For smaller builds you can disable default features and enable only the transport you want.
+Storage-only build:
 
 ```bash
-# Default CLI build: serial + ssh
-cargo build -p putty-rs
-
-# Storage-only CLI build
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features
+```
 
-# Serial-only CLI build
+Serial-only build:
+
+```bash
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features serial
+```
 
-# SSH-only CLI build
+SSH-only build:
+
+```bash
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features ssh
 ```
-
-This works because `putty_core` exposes optional `serial` and `ssh` features, and `putty_cli` forwards those features while disabling `putty_core` defaults for the CLI dependency. That allows targeted CLI builds without changing the default behavior of the gRPC server or web binary.
 
 ## Dependencies
 
@@ -41,23 +50,6 @@ This works because `putty_core` exposes optional `serial` and `ssh` features, an
 sudo apt-get install libssl-dev
 # For tonic of you want to build the gRPC server
 sudo apt install protobuf-compiler
-```
-
-## Test serial connection with putty or second putty-rs instance as other end of virtual serial device
-
-```bash
-socat -d -d pty,raw,echo=0 pty,raw,echo=0 # Create two connected virtual serial devices e.g. /dev/pts/2 and /dev/pts/3
-# Connect a programm like putty to /dev/pts/2 or just launch putty-rs twice
-cargo run -p putty-rs -- serial --port /dev/pts/2 # run putty-rs and connect it to /dev/pts/2
-cargo run -p putty-rs -- serial --port /dev/pts/3 # run putty-rs and connect it to /dev/pts/3
-```
-
-## Test ssh connection
-
-To be able to connect to a ssh server you need to specify some parameters.
-
-```bash
-cargo run -p putty-rs -- ssh --help
 ```
 
 ## Test the gRPC server

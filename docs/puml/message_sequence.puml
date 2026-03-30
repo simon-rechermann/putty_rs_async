@@ -1,40 +1,52 @@
-@startuml Byte_Flow
-title Byte flow in if a CLI User presses a key and Ctrl+A x
+@startuml WebUi_Connection_Flow
+title Browser UI flow: open connection, exchange bytes, stop
 
 skinparam participantPadding 15
-actor CLI            as U
-participant "CLI task\n(run_cli_loop)"          as CLI
-participant "ConnectionManager\n(write_bytes)" as CM
-participant "I/O task\n(per‑connection)"       as IO
-participant "Transport\n(Serial / SSH)"        as TR
-participant "Remote Connection"                      as REM
 
-== Send keystroke ==
-U  -> CLI   : press 'a'
-CLI -> CM   : write_bytes(id, [97])
-CM  -> IO : IoEvent::Write([97])
-IO --> IO : (recv)
-IO  -> TR   : conn.write([97])
-TR  -> REM   : write([97])
+actor User
+participant "Browser UI\n(webui)" as UI
+participant "Static server\n(putty_rs_web)" as HTTP
+participant "gRPC service\n(putty_grpc_server)" as GRPC
+participant "ConnectionManager" as CM
+participant "I/O task" as IO
+participant "Transport\n(Serial / SSH)" as TR
+participant "Remote endpoint" as REMOTE
 
-== Remote echoes ==
-REM --> TR  : read([97])
-TR --> IO   : conn.read() -> [97]
-IO  -> U : broadcast_tx.send([97])
-U  -> U   : write_all + flush
+== Load application ==
+User -> HTTP : open http://127.0.0.1:8080
+HTTP --> User : index.html + assets
+User -> UI : interact with frontend
 
-== Stop request (Ctrl+A x) ==
-U  -> CLI   : Ctrl+A 'x'
-CLI -> CM   : stop_connection(id)
-CM  -> IO : IoEvent::Stop
-IO --> IO : (recv)
-IO  -> TR   : disconnect()
-IO  --> CM  : task ends
+== Open connection ==
+UI -> GRPC : CreateRemoteConnection(...)
+GRPC -> CM : add_connection(id, conn)
+CM -> IO : spawn per-connection task
+IO -> TR : connect()
+GRPC --> UI : ConnectionId
+
+== Exchange bytes ==
+UI -> GRPC : Write(id, data)
+GRPC -> CM : write_bytes(id, data)
+CM -> IO : IoEvent::Write(data)
+IO -> TR : write(data)
+TR -> REMOTE : bytes
+
+REMOTE --> TR : bytes
+TR --> IO : read(buf)
+IO -> CM : broadcast chunk
+CM --> GRPC : subscriber receives chunk
+GRPC --> UI : Read stream(ByteChunk)
+
+== Stop ==
+UI -> GRPC : Stop(id)
+GRPC -> CM : stop_connection(id)
+CM -> IO : IoEvent::Stop
+IO -> TR : disconnect()
+IO --> CM : task ends
+GRPC --> UI : Empty
 
 legend bottom
-  **Scenario**
-  • User keystrokes travel CLI → ConnectionManager → I/O task → Transport → Remote Connection
-  • Remote Connection echoes bytes back → I/O task broadcasts to all subscribers like CLI 
-  • Ctrl + A, x triggers stop_connection and a clean shut-down sequence.
+  The CLI follows the same core flow, but talks to ConnectionManager directly
+  instead of going through the browser UI and gRPC service.
 endlegend
 @enduml

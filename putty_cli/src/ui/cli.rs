@@ -78,7 +78,7 @@ pub enum Protocol {
     Storage {
         #[command(subcommand)]
         action: StorageAction,
-    }
+    },
 }
 
 /// Actions in `putty_rs storage <action>`

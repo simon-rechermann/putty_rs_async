@@ -3,6 +3,14 @@ include::config.adoc[]
 == Introduction
 putty-rs is a rust clone of link:https://www.putty.org/[putty].
 
+The current workspace contains:
+
+- `putty-rs`: terminal CLI for serial, SSH, and profile management
+- `putty_core`: connection management, transports, and profile storage
+- `putty_grpc_server`: gRPC / gRPC-Web server exposing the backend
+- `putty_rs_web`: single binary that starts the backend and serves the web UI
+- `webui`: React frontend talking to the backend over gRPC-Web
+
 == What's the Architecture of putty-rs?
 
 The Architecture description is based on the link:https://docs.arc42.org/section-5/[arc42 template].

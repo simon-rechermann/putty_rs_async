@@ -5,11 +5,11 @@ allowmixing
 skinparam packageStyle rectangle
 skinparam packageBackgroundColor White
 
-package UI {
+package "putty-rs CLI" {
     class CLI
 }
 
-package gRPC_server {
+package "putty_grpc_server" {
     class RemoteConnection {
         + CreateRemoteConnection
         + Read
@@ -18,7 +18,7 @@ package gRPC_server {
     }
 }
 
-package gRPC_client {
+package "Python gRPC client" {
     class RemoteConnectionStub {
         + CreateRemoteConnection
         + Read
@@ -27,7 +27,7 @@ package gRPC_client {
     }
 }
 
-package Core {
+package "putty_core" {
     class ConnectionIOHandle
     class ConnectionManager
      {
@@ -53,8 +53,8 @@ package Connections {
 }
 
 CLI --> ConnectionManager
-gRPC_client --> gRPC_server
-gRPC_server --> ConnectionManager
+RemoteConnectionStub --> RemoteConnection
+RemoteConnection --> ConnectionManager
 ConnectionIOHandle --> Connection
 ConnectionManager --> Connection
 

@@ -34,7 +34,13 @@ fn restore_mode() {
 
 /// Command-line arguments.
 #[derive(Parser, Debug)]
-#[command(name = "putty_rs", version = "0.1.0", subcommand_required = true)]
+#[command(
+    name = "putty-rs",
+    version,
+    about = "Terminal client with serial, SSH, and saved profile support",
+    long_about = None,
+    subcommand_required = true
+)]
 pub struct Args {
     #[command(subcommand)]
     pub protocol: Protocol,
@@ -43,22 +49,22 @@ pub struct Args {
 #[derive(Subcommand, Debug)]
 pub enum Protocol {
     #[cfg(feature = "serial")]
-    /// Use a serial connection
+    /// Open an interactive serial terminal session
     Serial {
-        /// Serial port to open
+        /// Serial device path, for example /dev/ttyUSB0
         #[arg(long, default_value = "/dev/pts/3")]
         port: String,
-        /// Baud rate
+        /// Serial baud rate
         #[arg(long, default_value_t = 115200)]
         baud: u32,
     },
     #[cfg(feature = "ssh")]
-    /// Use an SSH connection
+    /// Open an interactive SSH terminal session
     Ssh {
-        /// SSH server host
+        /// SSH server host name or IP address
         #[arg(long)]
         host: String,
-        /// SSH server port (default 22)
+        /// SSH server port
         #[arg(long, default_value_t = 22)]
         port: u16,
         /// Username for SSH authentication
@@ -68,7 +74,7 @@ pub enum Protocol {
         #[arg(long, default_value = "")]
         password: String,
     },
-    /// Manage saved connection presets.
+    /// Manage saved connection presets
     Storage {
         #[command(subcommand)]
         action: StorageAction,
@@ -78,34 +84,49 @@ pub enum Protocol {
 /// Actions in `putty_rs storage <action>`
 #[derive(Subcommand, Debug)]
 pub enum StorageAction {
+    /// List saved profiles
     List,
     #[cfg(feature = "serial")]
+    /// Save a serial profile
     SaveSerial {
+        /// Profile name
         #[arg(long)]
         name: String,
+        /// Serial device path
         #[arg(long, default_value = "/dev/pts/3")]
         port: String,
+        /// Serial baud rate
         #[arg(long, default_value_t = 115200)]
         baud: u32,
     },
     #[cfg(feature = "ssh")]
+    /// Save an SSH profile
     SaveSsh {
+        /// Profile name
         #[arg(long)]
         name: String,
+        /// SSH server host name or IP address
         #[arg(long)]
         host: String,
+        /// SSH server port
         #[arg(long, default_value_t = 22)]
         port: u16,
+        /// Username for SSH authentication
         #[arg(long)]
         username: String,
+        /// Password for SSH authentication
         #[arg(long, default_value = "")]
         password: String,
     },
+    /// Delete a saved profile
     Delete {
+        /// Profile name
         #[arg(long)]
         name: String,
     },
+    /// Open a saved profile by name
     UseProfile {
+        /// Profile name
         #[arg(long)]
         profile: String,
     },

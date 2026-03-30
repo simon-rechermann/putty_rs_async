@@ -1,8 +1,33 @@
 @startuml ArchLevel1
-' skinparam componentBackgroundColor White
 
-[CLI] --> [Core]
-[grpcClient] --> [grpcServer]
-[grpcServer] --> [Core]
-[Core] --> [Connections]
+skinparam componentStyle rectangle
+
+actor User
+
+[putty-rs CLI] as CLI
+[Python gRPC client] as PY
+[Browser] as BROWSER
+[putty_rs_web] as WEBBIN
+[webui] as WEBUI
+[putty_grpc_server] as GRPC
+[putty_core] as CORE
+[Profile storage\n(JSON + keyring)] as STORE
+[Remote endpoints\n(serial devices / SSH servers)] as REMOTE
+
+User --> CLI
+User --> BROWSER
+User --> PY
+User --> WEBBIN
+
+BROWSER --> WEBUI
+WEBBIN --> WEBUI
+WEBBIN --> GRPC
+
+CLI --> CORE
+PY --> GRPC
+WEBUI --> GRPC
+GRPC --> CORE
+CORE --> STORE
+CORE --> REMOTE
+
 @enduml

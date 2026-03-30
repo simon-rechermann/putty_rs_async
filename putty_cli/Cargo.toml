@@ -1,6 +1,6 @@
 [package]
 name    = "putty-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Composable terminal client with serial and SSH support"
 license = "MIT"

@@ -1,0 +1,132 @@
+name: Release Artifacts
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing git tag to package, e.g. putty-rs-v0.1.0
+        required: true
+        type: string
+
+env:
+  PROTOC_VERSION: '25.3'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-and-upload:
+    name: Package (${{ matrix.os }})
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.tag_name, 'putty-rs-v')
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x86_64
+            bin_ext: ''
+          - os: macos-14
+            platform: macos-aarch64
+            bin_ext: ''
+          - os: windows-2022
+            platform: windows-x86_64
+            bin_ext: '.exe'
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - if: runner.os == 'Linux'
+        name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y pkg-config libudev-dev
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build outputs
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        shell: bash
+        run: |
+          cargo build --locked --release --target-dir target/dist/default -p putty-rs
+          cargo build --locked --release --target-dir target/dist/serial -p putty-rs --no-default-features --features serial
+          cargo build --locked --release --target-dir target/dist/web -p putty_rs_web
+
+      - name: Package release archives
+        id: package
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#putty-rs-v}"
+          mkdir -p dist
+
+          full_archive="$(
+            bash ./scripts/package_release_artifact.sh \
+              "target/dist/default/release/putty-rs${{ matrix.bin_ext }}" \
+              "putty-rs${{ matrix.bin_ext }}" \
+              "putty-rs-${{ matrix.platform }}" \
+              "$version" \
+              dist
+          )"
+
+          serial_archive="$(
+            bash ./scripts/package_release_artifact.sh \
+              "target/dist/serial/release/putty-rs${{ matrix.bin_ext }}" \
+              "putty-rs${{ matrix.bin_ext }}" \
+              "putty-rs-serial-${{ matrix.platform }}" \
+              "$version" \
+              dist
+          )"
+
+          web_archive="$(
+            bash ./scripts/package_release_artifact.sh \
+              "target/dist/web/release/putty_rs_web${{ matrix.bin_ext }}" \
+              "putty_rs_web${{ matrix.bin_ext }}" \
+              "putty-rs-web-${{ matrix.platform }}" \
+              "$version" \
+              dist
+          )"
+
+          {
+            echo "full_archive=$full_archive"
+            echo "serial_archive=$serial_archive"
+            echo "web_archive=$web_archive"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ${{ steps.package.outputs.full_archive }}
+            ${{ steps.package.outputs.serial_archive }}
+            ${{ steps.package.outputs.web_archive }}

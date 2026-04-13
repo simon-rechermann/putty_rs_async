@@ -47,7 +47,11 @@ const CLI_ABOUT: &str = "Terminal client with SSH and saved profile support";
 const CLI_ABOUT: &str = "Terminal client with SSH support";
 #[cfg(all(not(feature = "serial"), not(feature = "ssh"), feature = "storage"))]
 const CLI_ABOUT: &str = "Terminal client with saved profile support";
-#[cfg(all(not(feature = "serial"), not(feature = "ssh"), not(feature = "storage")))]
+#[cfg(all(
+    not(feature = "serial"),
+    not(feature = "ssh"),
+    not(feature = "storage")
+))]
 const CLI_ABOUT: &str = "Terminal client";
 
 /// Command-line arguments.

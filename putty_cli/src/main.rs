@@ -1,9 +1,9 @@
-mod ui;
 mod logging;
+mod ui;
 
+use crate::logging::init_logging;
 use crate::ui::cli;
 use clap::Parser;
-use crate::logging::init_logging;
 
 #[tokio::main]
 async fn main() {

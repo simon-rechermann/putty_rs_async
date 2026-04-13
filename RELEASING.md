@@ -11,11 +11,16 @@ The automated release workflow currently manages:
 
 ## Repository setup
 
-For automated publishing, the repository must have a crates.io token stored as the GitHub Actions secret `CARGO_REGISTRY_TOKEN`.
+For automated publishing, the repository must have:
+
+- a crates.io token stored as the GitHub Actions secret `CARGO_REGISTRY_TOKEN`
+- a GitHub token stored as `RELEASE_PLZ_TOKEN`
 
 In GitHub, repository secrets are managed in:
 
 - `Settings -> Secrets and variables -> Actions`
+
+`RELEASE_PLZ_TOKEN` should be a token that can create branches, open pull requests, create tags, and publish GitHub Releases. Using a dedicated token instead of the default `GITHUB_TOKEN` allows the `release-plz` PR to trigger the normal CI workflows, which is required when branch protection enforces status checks.
 
 GitHub Actions also needs:
 

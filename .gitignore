@@ -3,3 +3,4 @@ TODO.md
 .venv
 __pycache__
 generated
+.codex

@@ -1,6 +1,6 @@
 [package]
 name    = "putty-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Composable terminal client with serial and SSH support"
 license = "MIT"
@@ -14,7 +14,7 @@ name = "putty-rs"
 path = "src/main.rs"
 
 [dependencies]
-putty_core = { path = "../putty_core", version = "0.1.0", default-features = false }
+putty_core = { path = "../putty_core", version = "0.1.1", default-features = false }
 putty_storage = { path = "../putty_storage", version = "0.1.0", optional = true }
 tokio      = { version = "1.44.2", features = ["full"] }
 clap       = { version = "4.5.36", features = ["derive"] }

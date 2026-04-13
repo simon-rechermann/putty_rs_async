@@ -15,14 +15,15 @@ path = "src/main.rs"
 
 [dependencies]
 putty_core = { path = "../putty_core", version = "0.1.0", default-features = false }
+putty_storage = { path = "../putty_storage", version = "0.1.0", optional = true }
 tokio      = { version = "1.44.2", features = ["full"] }
 clap       = { version = "4.5.36", features = ["derive"] }
 log        = "0.4.27"
 env_logger = "0.11.8"
 crossterm  = "0.29.0"
-keyring     = "3.6"
 
 [features]
-default = ["serial", "ssh"]
+default = ["serial", "ssh", "storage"]
 serial = ["putty_core/serial"]
 ssh = ["putty_core/ssh"]
+storage = ["dep:putty_storage"]

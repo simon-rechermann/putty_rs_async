@@ -11,6 +11,7 @@ actor User
 [webui] as WEBUI
 [putty_grpc_server] as GRPC
 [putty_core] as CORE
+[putty_storage] as PSTORE
 [Profile storage\n(JSON + keyring)] as STORE
 [Remote endpoints\n(serial devices / SSH servers)] as REMOTE
 
@@ -24,10 +25,12 @@ WEBBIN --> WEBUI
 WEBBIN --> GRPC
 
 CLI --> CORE
+CLI --> PSTORE
 PY --> GRPC
 WEBUI --> GRPC
 GRPC --> CORE
-CORE --> STORE
+GRPC --> PSTORE
+PSTORE --> STORE
 CORE --> REMOTE
 
 @enduml

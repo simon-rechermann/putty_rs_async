@@ -6,4 +6,3 @@ It contains:
 
 - transport implementations for serial and SSH connections
 - connection management
-- profile storage and keyring integration

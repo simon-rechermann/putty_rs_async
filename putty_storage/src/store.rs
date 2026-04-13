@@ -1,7 +1,7 @@
 //! A very small profile store
 //!
 //! * Each SSH profile keeps its secret in the system key-ring under the single
-//!   **service** “`putty_rs`” and user  **`putty_rs:<profile-name>`**..
+//!   **service** “`putty_rs`” and user **`putty_rs:<profile-name>`**.
 //! * Serial profiles contain no secret.
 
 use std::{fs, io, path::Path, path::PathBuf};
@@ -11,7 +11,7 @@ use keyring::{Entry, Error as KrError};
 use log::{debug, warn};
 use serde_json::Error as SerdeError;
 
-use super::profile::Profile;
+use crate::Profile;
 
 /// Small wrapper that stores JSON files on disk **and** secrets in the key-ring.
 #[derive(Debug, Clone)]
@@ -19,16 +19,14 @@ pub struct ProfileStore {
     dir: PathBuf,
 }
 
-/* ───────────────────────────────────────────────────────── helpers ── */
-
-/// canonical key-ring user name:  `putty_rs:<profile-name>`
+/// canonical key-ring user name: `putty_rs:<profile-name>`
 fn key_id(name: &str) -> String {
     format!("putty_rs:{name}")
 }
 
 /// open key-ring entry (logs every access so we see what happens)
 fn open_entry(id: &str) -> io::Result<Entry> {
-    debug!("key-ring open  service='putty_rs'  user='{id}'");
+    debug!("key-ring open service='putty_rs' user='{id}'");
     Entry::new("putty_rs", id).map_err(io::Error::other)
 }
 
@@ -36,8 +34,6 @@ fn open_entry(id: &str) -> io::Result<Entry> {
 fn json_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{name}.json"))
 }
-
-/* ─────────────────────────────────────────────── public impl ─────── */
 
 impl ProfileStore {
     /// Locate (or create) the *profiles* directory under the user’s config dir.
@@ -51,16 +47,13 @@ impl ProfileStore {
         Ok(Self { dir })
     }
 
-    /* --------------------------- save -------------------------------- */
-    ///
-    /// * Serial → copied 1:1 to JSON  
-    /// * SSH    → secret put in key-ring, redacted JSON on disk
+    /// * Serial → copied 1:1 to JSON
+    /// * SSH → secret put in key-ring, redacted JSON on disk
     pub fn save(&self, profile: &Profile) -> io::Result<()> {
         debug!("save {}", profile.name());
 
         let sanitized = match profile {
             Profile::Serial { .. } => profile.clone(),
-
             Profile::Ssh {
                 name,
                 host,
@@ -70,7 +63,7 @@ impl ProfileStore {
                 ..
             } => {
                 let id = key_id(name);
-                debug!("write secret len={}  to id='{id}'", password.len());
+                debug!("write secret len={} to id='{id}'", password.len());
 
                 if !password.is_empty() {
                     open_entry(&id)?
@@ -78,7 +71,6 @@ impl ProfileStore {
                         .map_err(io::Error::other)?;
                 }
 
-                // clone WITHOUT the secret
                 Profile::Ssh {
                     name: name.clone(),
                     host: host.clone(),
@@ -97,10 +89,8 @@ impl ProfileStore {
         .map_err(SerdeError::into)
     }
 
-    /* --------------------------- list ------------------------------- */
-    ///
-    /// Loads every JSON file; SSH profiles get their secret filled in
-    /// from the key-ring (if present).
+    /// Loads every JSON file; SSH profiles get their secret filled in from the
+    /// key-ring when available.
     pub fn list(&self) -> io::Result<Vec<Profile>> {
         debug!("KEYRING_BACKEND = {:?}", std::env::var("KEYRING_BACKEND"));
         let mut out = Vec::new();
@@ -143,12 +133,10 @@ impl ProfileStore {
         Ok(out)
     }
 
-    /* --------------------------- delete ----------------------------- */
-    ///
     /// Removes the JSON file **and** the associated key-ring secret.
     pub fn delete(&self, name: &str) -> io::Result<bool> {
         let id = key_id(name);
-        let _ = open_entry(&id)?.delete_credential(); // ignore NoEntry
+        let _ = open_entry(&id)?.delete_credential();
 
         match fs::remove_file(json_path(&self.dir, name)) {
             Ok(()) => Ok(true),
@@ -157,7 +145,7 @@ impl ProfileStore {
         }
     }
 
-    /// Create a store rooted at an explicit directory – useful for **tests**.
+    /// Create a store rooted at an explicit directory, useful for tests.
     pub fn in_dir(dir: PathBuf) -> io::Result<Self> {
         fs::create_dir_all(&dir)?;
         Ok(Self { dir })

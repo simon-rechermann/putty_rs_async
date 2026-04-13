@@ -1,25 +1,37 @@
 # putty-rs
 
-`putty-rs` is a terminal client with serial and SSH support.
+`putty-rs` is a terminal client with feature-gated serial, SSH, and optional profile storage support.
 
 ## Install
 
-Install the default CLI with both serial and SSH support:
+Install the default CLI with serial, SSH, and storage support:
 
 ```bash
 cargo install putty-rs
 ```
 
-Install a smaller serial-only build:
+Install a smaller serial-only build without storage:
 
 ```bash
 cargo install putty-rs --no-default-features --features serial
 ```
 
-Install an SSH-only build:
+Install an SSH-only build without storage:
 
 ```bash
 cargo install putty-rs --no-default-features --features ssh
+```
+
+Install a serial-only build with storage support:
+
+```bash
+cargo install putty-rs --no-default-features --features serial,storage
+```
+
+Install an SSH-only build with storage support:
+
+```bash
+cargo install putty-rs --no-default-features --features ssh,storage
 ```
 
 ## CLI Usage
@@ -35,6 +47,11 @@ Show transport-specific help:
 ```bash
 putty-rs serial --help
 putty-rs ssh --help
+```
+
+Show storage help when the CLI was built with the `storage` feature:
+
+```bash
 putty-rs storage --help
 ```
 
@@ -64,6 +81,8 @@ putty-rs ssh --host 127.0.0.1 --username user
 ```
 
 ## Profiles
+
+These commands are only available when the CLI was built with the `storage` feature.
 
 List saved profiles:
 

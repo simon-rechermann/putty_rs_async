@@ -1522,9 +1522,9 @@ dependencies = [
  "clap",
  "crossterm",
  "env_logger",
- "keyring",
  "log",
  "putty_core",
+ "putty_storage",
  "tokio",
 ]
 
@@ -1534,14 +1534,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "crossterm",
- "directories",
  "env_logger",
- "keyring",
  "log",
  "regex",
- "serde",
- "serde_json",
  "ssh2",
  "tempfile",
  "tokio",
@@ -1557,6 +1552,7 @@ dependencies = [
  "prost",
  "prost-types",
  "putty_core",
+ "putty_storage",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -1581,6 +1577,20 @@ dependencies = [
  "tower-http 0.5.2",
  "tracing",
  "webbrowser",
+]
+
+[[package]]
+name = "putty_storage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "directories",
+ "keyring",
+ "log",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 //! Bidirectional conversion helpers between the protobuf world
-//! and the domain structs that live in putty_core.
+//! and the domain structs that live in putty_storage.
 
-use putty_core::Profile;
+use putty_storage::Profile;
 use tonic::Status;
 
 use crate::putty_interface::{profile_req, ProfileReq, Serial, Ssh};

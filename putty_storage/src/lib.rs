@@ -1,5 +1,5 @@
-pub mod profile;
-pub mod store;
+mod profile;
+mod store;
 
 pub use profile::Profile;
 pub use store::ProfileStore;

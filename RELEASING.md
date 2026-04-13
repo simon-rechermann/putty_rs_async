@@ -1,6 +1,6 @@
 # Releasing
 
-This repository uses `release-plz` to automate version bumps, changelog updates, tags, GitHub releases, and crates.io publishing.
+This repository uses `release-plz` to automate version bumps, changelog updates, tags, GitHub releases, and crates.io publishing. GitHub Actions also builds and attaches runnable release artifacts for `putty-rs` and `putty_rs_web` on Linux, macOS, and Windows.
 
 ## Managed crates
 
@@ -31,6 +31,18 @@ These settings are available in:
 - Normal changes are merged into `main`.
 - The `Release-plz PR` workflow opens or updates a release PR with version bumps and changelog updates.
 - When that release PR is merged, the `Release-plz release` workflow publishes unreleased crates from `main`.
+
+Short timeline:
+
+1. A normal feature PR is merged into `main`.
+2. `release-plz release-pr` opens or updates the release PR.
+3. Nothing is published yet.
+4. When the release PR is merged into `main`, `release-plz release` runs on that new `main` commit.
+5. For each managed package that is ready to release, `release-plz`:
+   - creates a git tag named `<package>-v<version>`
+   - publishes the crate to crates.io
+   - creates a GitHub Release for that tag
+6. The `release-artifacts` workflow listens for the published GitHub Release and attaches binary archives for `putty-rs` releases.
 
 In practice, the workflow is triggered by pushes to `main`:
 
@@ -131,5 +143,6 @@ In this repository:
 
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs build, lint, and test jobs
 - [`.github/workflows/release-plz.yml`](.github/workflows/release-plz.yml) handles release PR creation and publishing
+- [`.github/workflows/release-artifacts.yml`](.github/workflows/release-artifacts.yml) attaches cross-platform binary archives to `putty-rs` GitHub releases
 
 GitHub Actions can reuse logic with reusable workflows (`workflow_call`) or composite actions, but that is optional. Separate workflow files are the simplest setup here.

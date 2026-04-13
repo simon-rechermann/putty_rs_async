@@ -18,6 +18,16 @@ package "putty_grpc_server" {
     }
 }
 
+package "putty_storage" {
+    class Profile
+    class ProfileStore {
+        + list
+        + save
+        + delete
+    }
+    ProfileStore --> Profile
+}
+
 package "Python gRPC client" {
     class RemoteConnectionStub {
         + CreateRemoteConnection
@@ -53,8 +63,10 @@ package Connections {
 }
 
 CLI --> ConnectionManager
+CLI --> ProfileStore
 RemoteConnectionStub --> RemoteConnection
 RemoteConnection --> ConnectionManager
+RemoteConnection --> ProfileStore
 ConnectionIOHandle --> Connection
 ConnectionManager --> Connection
 

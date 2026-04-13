@@ -1,0 +1,22 @@
+[package]
+name = "putty_storage"
+version = "0.1.0"
+edition = "2021"
+description = "Profile storage and keyring integration for putty-rs"
+license = "MIT"
+repository = "https://github.com/simon-rechermann/putty_rs_async"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+directories = "6.0"
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
+log = "0.4.27"
+
+[dev-dependencies]
+anyhow = "1.0"
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }

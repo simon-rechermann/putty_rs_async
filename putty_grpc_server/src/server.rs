@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use putty_core::{connections::connection::Connection, ConnectionManager};
-use putty_core::{Profile, ProfileStore};
+use putty_storage::{Profile, ProfileStore};
 use tokio::sync::mpsc;
 use tonic::{
     transport::Server as TonicServer, // gRPC transport server
@@ -69,10 +69,10 @@ impl RemoteConnection for ConnectionService {
 
                 // 2. Turn that preset into the concrete connection
                 match preset {
-                    putty_core::Profile::Serial { port, baud, .. } => Box::new(
+                    Profile::Serial { port, baud, .. } => Box::new(
                         putty_core::connections::serial::SerialConnection::new(port, baud),
                     ),
-                    putty_core::Profile::Ssh {
+                    Profile::Ssh {
                         host,
                         port,
                         username,

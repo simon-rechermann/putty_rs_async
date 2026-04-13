@@ -12,7 +12,8 @@ use putty_core::connections::ssh::SshConnection;
 use putty_core::connections::Connection;
 #[cfg(any(feature = "serial", feature = "ssh"))]
 use putty_core::core::connection_manager::ConnectionManager;
-use putty_core::{Profile, ProfileStore};
+#[cfg(feature = "storage")]
+use putty_storage::{Profile, ProfileStore};
 #[cfg(any(feature = "serial", feature = "ssh"))]
 use std::io::{stdout, Write};
 #[cfg(any(feature = "serial", feature = "ssh"))]
@@ -32,12 +33,33 @@ fn restore_mode() {
     let _ = disable_raw_mode();
 }
 
+#[cfg(all(feature = "serial", feature = "ssh", feature = "storage"))]
+const CLI_ABOUT: &str = "Terminal client with serial, SSH, and saved profile support";
+#[cfg(all(feature = "serial", feature = "ssh", not(feature = "storage")))]
+const CLI_ABOUT: &str = "Terminal client with serial and SSH support";
+#[cfg(all(feature = "serial", not(feature = "ssh"), feature = "storage"))]
+const CLI_ABOUT: &str = "Terminal client with serial and saved profile support";
+#[cfg(all(feature = "serial", not(feature = "ssh"), not(feature = "storage")))]
+const CLI_ABOUT: &str = "Terminal client with serial support";
+#[cfg(all(not(feature = "serial"), feature = "ssh", feature = "storage"))]
+const CLI_ABOUT: &str = "Terminal client with SSH and saved profile support";
+#[cfg(all(not(feature = "serial"), feature = "ssh", not(feature = "storage")))]
+const CLI_ABOUT: &str = "Terminal client with SSH support";
+#[cfg(all(not(feature = "serial"), not(feature = "ssh"), feature = "storage"))]
+const CLI_ABOUT: &str = "Terminal client with saved profile support";
+#[cfg(all(
+    not(feature = "serial"),
+    not(feature = "ssh"),
+    not(feature = "storage")
+))]
+const CLI_ABOUT: &str = "Terminal client";
+
 /// Command-line arguments.
 #[derive(Parser, Debug)]
 #[command(
     name = "putty-rs",
     version,
-    about = "Terminal client with serial, SSH, and saved profile support",
+    about = CLI_ABOUT,
     long_about = None,
     subcommand_required = true
 )]
@@ -74,6 +96,7 @@ pub enum Protocol {
         #[arg(long, default_value = "")]
         password: String,
     },
+    #[cfg(feature = "storage")]
     /// Manage saved connection presets
     Storage {
         #[command(subcommand)]
@@ -82,6 +105,7 @@ pub enum Protocol {
 }
 
 /// Actions in `putty_rs storage <action>`
+#[cfg(feature = "storage")]
 #[derive(Subcommand, Debug)]
 pub enum StorageAction {
     /// List saved profiles
@@ -150,6 +174,7 @@ pub async fn run_cli(args: Args) -> Result<(), ConnectionError> {
         } => {
             run_ssh_protocol(host, port, username, password, &connection_manager).await?;
         }
+        #[cfg(feature = "storage")]
         Protocol::Storage { action } => match action {
             // open by profile name
             StorageAction::UseProfile { profile } => {
@@ -295,6 +320,7 @@ async fn run_cli_loop(
     Ok(())
 }
 
+#[cfg(feature = "storage")]
 async fn handle_storage_cmd(action: StorageAction) -> Result<(), ConnectionError> {
     let store = ProfileStore::new().map_err(|e| ConnectionError::Other(e.to_string()))?;
 

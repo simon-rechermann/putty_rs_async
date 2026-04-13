@@ -5,8 +5,9 @@ putty-rs is a rust clone of link:https://www.putty.org/[putty].
 
 The current workspace contains:
 
-- `putty-rs`: terminal CLI for serial, SSH, and profile management
-- `putty_core`: connection management, transports, and profile storage
+- `putty-rs`: terminal CLI for serial, SSH, and optional profile management
+- `putty_core`: connection management and transports
+- `putty_storage`: profile storage and keyring integration
 - `putty_grpc_server`: gRPC / gRPC-Web server exposing the backend
 - `putty_rs_web`: single binary that starts the backend and serves the web UI
 - `webui`: React frontend talking to the backend over gRPC-Web

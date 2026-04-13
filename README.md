@@ -5,8 +5,9 @@ The complete documentation is available in docs/index.adoc
 
 ## Components
 
-- `putty-rs`: CLI binary with serial, SSH, and profile management support
-- `putty_core`: core transport, storage, and connection management logic
+- `putty-rs`: CLI binary with feature-gated serial, SSH, and profile management/storage support
+- `putty_core`: core transport and connection management logic
+- `putty_storage`: profile storage and keyring integration
 - `putty_grpc_server`: gRPC server exposing the backend for other clients
 - `putty_rs_web`: single-binary web launcher that starts the backend and serves the web UI
 - `webui`: React frontend for the browser-based UI
@@ -17,28 +18,40 @@ CLI install, build, usage, profile handling, and terminal controls are documente
 
 ## Build CLI From Source
 
-Default build with both serial and SSH support:
+Default build with serial, SSH, and storage support:
 
 ```bash
 cargo build -p putty-rs
 ```
 
-Storage-only build:
+Serial + SSH without storage:
 
 ```bash
-cargo build --manifest-path putty_cli/Cargo.toml --no-default-features
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features serial,ssh
 ```
 
-Serial-only build:
+Serial-only build without storage:
 
 ```bash
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features serial
 ```
 
-SSH-only build:
+SSH-only build without storage:
 
 ```bash
 cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features ssh
+```
+
+Serial-only build with storage:
+
+```bash
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features serial,storage
+```
+
+SSH-only build with storage:
+
+```bash
+cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --features ssh,storage
 ```
 
 ## Dependencies

@@ -95,16 +95,18 @@ jobs:
               "putty-rs${{ matrix.bin_ext }}" \
               "putty-rs-${{ matrix.platform }}" \
               "$version" \
-              dist
+              dist \
+              "putty_cli/README.md"
           )"
 
           serial_archive="$(
             bash ./scripts/package_release_artifact.sh \
               "target/dist/serial/release/putty-rs${{ matrix.bin_ext }}" \
               "putty-rs${{ matrix.bin_ext }}" \
-              "putty-rs-serial-${{ matrix.platform }}" \
+              "putty-rs-serial-only-${{ matrix.platform }}" \
               "$version" \
-              dist
+              dist \
+              "putty_cli/README.md"
           )"
 
           web_archive="$(
@@ -113,7 +115,8 @@ jobs:
               "putty_rs_web${{ matrix.bin_ext }}" \
               "putty-rs-web-${{ matrix.platform }}" \
               "$version" \
-              dist
+              dist \
+              "README.md"
           )"
 
           {

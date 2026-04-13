@@ -7,6 +7,7 @@ This repository uses `release-plz` to automate version bumps, changelog updates,
 The automated release workflow currently manages:
 
 - `putty_core`
+- `putty_storage`
 - `putty-rs`
 
 ## Repository setup
@@ -105,7 +106,7 @@ cargo publish -p putty_core
 cargo publish -p putty-rs
 ```
 
-`putty_core` must be published before `putty-rs`, because `putty-rs` depends on it as a normal crates.io dependency.
+`putty_core` and `putty_storage` must be published before `putty-rs`, because `putty-rs` depends on both as normal crates.io dependencies.
 
 ## Why `semver_check = false` for `putty-rs`
 

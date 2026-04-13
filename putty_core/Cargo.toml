@@ -1,6 +1,6 @@
 [package]
 name = "putty_core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Core connection, profile storage, and transport logic for putty-rs"
 license = "MIT"

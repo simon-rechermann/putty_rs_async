@@ -11,6 +11,10 @@ name = "putty_core"
 release = true
 
 [[package]]
+name = "putty_storage"
+release = true
+
+[[package]]
 name = "putty-rs"
 release = true
 # Don't check semver for binary crates

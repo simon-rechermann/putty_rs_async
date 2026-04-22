@@ -1,22 +1,33 @@
 use crate::connections::{connection::Connection, errors::ConnectionError};
 use async_trait::async_trait;
-use log::{error, info};
-use ssh2::Session;
+use log::{debug, info};
+use russh::client::{self, AuthResult, Handle};
+use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
+use russh::{Channel, ChannelMsg, Disconnect};
+use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
-use std::io::ErrorKind;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-use std::{
-    collections::VecDeque,
-    io::{Read, Write},
-    net::TcpStream,
-    path::PathBuf,
-    thread,
-    time::Duration,
-};
-use tokio::sync::mpsc;
+impl From<russh::Error> for ConnectionError {
+    fn from(err: russh::Error) -> Self {
+        ConnectionError::Other(format!("SSH: {err}"))
+    }
+}
+
+struct SshClient;
+
+impl client::Handler for SshClient {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        _server_public_key: &russh::keys::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        // Host-key verification lives in the TODO list; accept everything for now.
+        Ok(true)
+    }
+}
 
 pub struct SshConnection {
     host: String,
@@ -25,12 +36,9 @@ pub struct SshConnection {
     password: Option<String>,
     keyfile: Option<(PathBuf, Option<String>)>,
 
-    write_tx: Option<mpsc::Sender<Vec<u8>>>,
-    read_rx: Option<mpsc::Receiver<Vec<u8>>>,
-
+    session: Option<Handle<SshClient>>,
+    channel: Option<Channel<client::Msg>>,
     leftovers: VecDeque<u8>,
-    worker: Option<thread::JoinHandle<()>>,
-    stop_flag: Arc<AtomicBool>,
 }
 
 impl SshConnection {
@@ -41,15 +49,13 @@ impl SshConnection {
             username,
             password: Some(password),
             keyfile: None,
-            write_tx: None,
-            read_rx: None,
+            session: None,
+            channel: None,
             leftovers: VecDeque::new(),
-            worker: None,
-            stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Constructor for public‑key authentication
+    /// Constructor for public-key authentication.
     pub fn with_key(
         host: String,
         port: u16,
@@ -63,11 +69,9 @@ impl SshConnection {
             username,
             password: None,
             keyfile: Some((private_key, passphrase)),
-            write_tx: None,
-            read_rx: None,
+            session: None,
+            channel: None,
             leftovers: VecDeque::new(),
-            worker: None,
-            stop_flag: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -76,150 +80,73 @@ impl SshConnection {
 impl Connection for SshConnection {
     async fn connect(&mut self) -> Result<(), ConnectionError> {
         let addr = format!("{}:{}", self.host, self.port);
-        let username = self.username.clone();
-        let password = self.password.clone();
-        let keyfile = self.keyfile.clone();
-        let stop_flag = self.stop_flag.clone(); // ← share with thread
+        info!("Connecting to SSH server at {addr}");
 
-        let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
-        let (read_tx, read_rx) = mpsc::channel::<Vec<u8>>(32);
-
-        info!("Connecting to SSH server at {}", addr);
-
-        // ---------------- blocking worker -----------------------------
-        let worker = thread::spawn(move || {
-            // ---- establish session & channel --------------------------
-            let tcp = match TcpStream::connect(&addr) {
-                Ok(t) => t,
-                Err(e) => {
-                    error!("TCP connect error: {e}");
-                    return;
-                }
-            };
-
-            tcp.set_read_timeout(Some(Duration::from_millis(500))).ok();
-            tcp.set_write_timeout(Some(Duration::from_millis(500))).ok();
-
-            let mut session = match Session::new() {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("Failed to create SSH session: {e}");
-                    return;
-                }
-            };
-            session.set_tcp_stream(tcp);
-            if let Err(e) = session.handshake() {
-                error!("Handshake error: {e}");
-                return;
-            }
-
-            // ---- authenticate ----------------------------------------
-            let auth_res = if let Some((privkey, phr)) = keyfile {
-                session.userauth_pubkey_file(
-                    &username,
-                    None, // let libssh2 derive ".pub"
-                    &privkey,
-                    phr.as_deref(),
-                )
-            } else if let Some(pw) = password {
-                session.userauth_password(&username, &pw)
-            } else {
-                Err(ssh2::Error::from_errno(ssh2::ErrorCode::Session(-18)))
-            };
-
-            if let Err(e) = auth_res {
-                error!("Authentication error: {e}");
-                return;
-            }
-            if !session.authenticated() {
-                error!("SSH authentication failed");
-                return;
-            }
-
-            let mut channel = match session.channel_session() {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("Channel error: {e}");
-                    return;
-                }
-            };
-            channel
-                .request_pty("xterm", None, Some((80, 24, 0, 0)))
-                .ok();
-            channel.shell().ok();
-            session.set_blocking(false);
-
-            info!("SSH connection established");
-
-            // ---- I/O loop --------------------------------------------
-            let mut buf = [0u8; 1024];
-
-            loop {
-                if stop_flag.load(Ordering::Relaxed) {
-                    info!("Worker received stop flag, exiting I/O loop");
-                    break;
-                }
-                // outgoing
-                while let Ok(pkt) = write_rx.try_recv() {
-                    if let Err(e) = channel.write_all(&pkt) {
-                        error!("SSH write error: {e}");
-                        return;
-                    }
-                    channel.flush().ok();
-                }
-
-                // incoming
-                match channel.read(&mut buf) {
-                    Ok(0) => {} // nothing
-                    Ok(n) => {
-                        if read_tx.blocking_send(buf[..n].to_vec()).is_err() {
-                            return; // receiver gone
-                        }
-                    }
-
-                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => { /* WouldBlock */ }
-                    Err(e) => {
-                        error!("SSH read error: {e}");
-                        return;
-                    }
-                }
-
-                thread::sleep(Duration::from_millis(2));
-            }
+        let config = Arc::new(client::Config {
+            inactivity_timeout: Some(Duration::from_secs(60)),
+            ..Default::default()
         });
-        // --------------------------------------------------------------
 
-        self.write_tx = Some(write_tx);
-        self.read_rx = Some(read_rx);
-        self.worker = Some(worker);
+        let mut session = client::connect(config, addr, SshClient).await?;
+
+        let auth_result: AuthResult = if let Some((key_path, passphrase)) = self.keyfile.clone() {
+            let key = load_secret_key(&key_path, passphrase.as_deref())
+                .map_err(|e| ConnectionError::Other(format!("SSH key load error: {e}")))?;
+            let rsa_hash = session.best_supported_rsa_hash().await?.flatten();
+            session
+                .authenticate_publickey(
+                    self.username.clone(),
+                    PrivateKeyWithHashAlg::new(Arc::new(key), rsa_hash),
+                )
+                .await?
+        } else if let Some(pw) = self.password.clone() {
+            session
+                .authenticate_password(self.username.clone(), pw)
+                .await?
+        } else {
+            return Err(ConnectionError::Other(
+                "No SSH authentication method configured".into(),
+            ));
+        };
+
+        if !auth_result.success() {
+            return Err(ConnectionError::Other("SSH authentication failed".into()));
+        }
+
+        let channel = session.channel_open_session().await?;
+        channel
+            .request_pty(false, "xterm", 80, 24, 0, 0, &[])
+            .await?;
+        channel.request_shell(false).await?;
+
+        info!("SSH connection established");
+        self.session = Some(session);
+        self.channel = Some(channel);
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), ConnectionError> {
-        // signal the worker thread to leave its loop
-        self.stop_flag.store(true, Ordering::SeqCst);
-
-        self.write_tx = None; // drop sender → closes mpsc channel
-        if let Some(jh) = self.worker.take() {
-            let _ = jh.join();
+        if let Some(channel) = self.channel.take() {
+            let _ = channel.close().await;
+        }
+        if let Some(session) = self.session.take() {
+            let _ = session
+                .disconnect(Disconnect::ByApplication, "bye", "en")
+                .await;
         }
         Ok(())
     }
 
     async fn write(&mut self, data: &[u8]) -> Result<usize, ConnectionError> {
-        match &self.write_tx {
-            Some(tx) => {
-                tx.send(data.to_vec())
-                    .await
-                    .map_err(|_| ConnectionError::Other("SSH write channel closed".into()))?;
-                Ok(data.len())
-            }
-            None => Err(ConnectionError::Other("Not connected".into())),
-        }
+        let channel = self
+            .channel
+            .as_ref()
+            .ok_or_else(|| ConnectionError::Other("Not connected".into()))?;
+        channel.data(data).await?;
+        Ok(data.len())
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, ConnectionError> {
-        // serve leftovers first
         if !self.leftovers.is_empty() {
             let n = std::cmp::min(buffer.len(), self.leftovers.len());
             for (dst, src) in buffer.iter_mut().take(n).zip(self.leftovers.drain(..n)) {
@@ -228,19 +155,35 @@ impl Connection for SshConnection {
             return Ok(n);
         }
 
-        match &mut self.read_rx {
-            Some(rx) => match rx.recv().await {
-                Some(mut chunk) => {
-                    let n = std::cmp::min(buffer.len(), chunk.len());
-                    buffer[..n].copy_from_slice(&chunk[..n]);
-                    if chunk.len() > n {
-                        self.leftovers.extend(chunk.split_off(n));
-                    }
-                    Ok(n)
+        let channel = self
+            .channel
+            .as_mut()
+            .ok_or_else(|| ConnectionError::Other("Not connected".into()))?;
+
+        loop {
+            match channel.wait().await {
+                Some(ChannelMsg::Data { data }) => {
+                    return Ok(copy_with_leftovers(&data, buffer, &mut self.leftovers));
                 }
-                None => Err(ConnectionError::Other("SSH connection closed".into())),
-            },
-            None => Err(ConnectionError::Other("Not connected".into())),
+                Some(ChannelMsg::ExtendedData { data, .. }) => {
+                    return Ok(copy_with_leftovers(&data, buffer, &mut self.leftovers));
+                }
+                Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
+                    return Err(ConnectionError::Other("SSH connection closed".into()));
+                }
+                Some(other) => {
+                    debug!("Ignoring SSH channel message: {other:?}");
+                }
+            }
         }
     }
+}
+
+fn copy_with_leftovers(src: &[u8], buf: &mut [u8], leftovers: &mut VecDeque<u8>) -> usize {
+    let n = std::cmp::min(buf.len(), src.len());
+    buf[..n].copy_from_slice(&src[..n]);
+    if src.len() > n {
+        leftovers.extend(src[n..].iter().copied());
+    }
+    n
 }

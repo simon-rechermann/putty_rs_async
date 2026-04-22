@@ -59,11 +59,11 @@ cargo build --manifest-path putty_cli/Cargo.toml --no-default-features --feature
 ### Ubuntu
 
 ```bash
-# For ssh2 crate
-sudo apt-get install libssl-dev
-# For tonic of you want to build the gRPC server
+# For tonic if you want to build the gRPC server
 sudo apt install protobuf-compiler
 ```
+
+SSH is provided by the pure-Rust `russh` crate, so no native TLS/SSL libraries are required.
 
 ## Test the gRPC server
 

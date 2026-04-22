@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/simon-rechermann/putty_rs_async/compare/putty_core-v0.1.1...putty_core-v0.1.2) - 2026-04-22
+
+### Added
+
+- migrate SSH backend from ssh2 to russh ([#16](https://github.com/simon-rechermann/putty_rs_async/pull/16))
+
 ## [0.1.1](https://github.com/simon-rechermann/putty_rs_async/compare/putty_core-v0.1.0...putty_core-v0.1.1) - 2026-04-13
 
 ### Added
